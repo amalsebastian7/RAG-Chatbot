@@ -1,3 +1,19 @@
+# Python environment & cache
 venv/
+python-ai-engine/venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Vector database & runtime data
+python-ai-engine/chroma_db/
+.logs/
+
+# Build artifacts
+java-orchestrator/target/
+.idea/
+*.iml
 .DS_Store
-data/sops/*.pdf
+
+# Document data (keep sample files tracked if desired, or exclude raw binaries)
+# data/sops/*.pdf
