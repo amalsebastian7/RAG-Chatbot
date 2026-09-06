@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
@@ -53,7 +54,8 @@ if "messages" not in st.session_state:
         {
             "role": "assistant",
             "content": "Hey, how may I help you today?",
-            "citations": []
+            "citations": [],
+            "response_time": None
         }
     ]
 
@@ -74,7 +76,7 @@ st.markdown("""
         color: #18181b !important;
     }
 
-    /* Completely hide deploy button, 3-dots settings menu, toolbar, sidebar, and headers */
+    /* Completely hide deploy button, 3-dots menu, toolbar, sidebar, and headers */
     #MainMenu, 
     .stDeployButton, 
     [data-testid="stDeployButton"],
@@ -91,6 +93,16 @@ st.markdown("""
         height: 0 !important;
         opacity: 0 !important;
         pointer-events: none !important;
+    }
+
+    /* Hide 'Press Enter to submit form' text on login & inputs */
+    [data-testid="InputInstructions"],
+    div[data-testid="stForm"] small,
+    div[data-testid="stTextInput"] small,
+    .st-emotion-cache-1vt4y43 {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
     }
 
     /* Main Container */
@@ -143,6 +155,49 @@ st.markdown("""
         color: #be123c !important;
     }
 
+    /* Right-aligned User Chat Bubble */
+    .user-bubble-container {
+        display: flex;
+        justify-content: flex-end;
+        margin: 12px 0;
+        width: 100%;
+    }
+    .user-bubble {
+        background-color: #f4f4f5;
+        color: #18181b;
+        padding: 10px 16px;
+        border-radius: 18px 18px 4px 18px;
+        max-width: 78%;
+        font-size: 0.94rem;
+        line-height: 1.55;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Left-aligned Assistant Message */
+    .assistant-response-container {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        margin: 8px 0 14px 0;
+        width: 100%;
+        color: #18181b;
+        font-size: 0.94rem;
+        line-height: 1.65;
+    }
+
+    /* Response Time Latency Tag */
+    .response-time-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.72rem;
+        color: #94a3b8;
+        margin-top: 8px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+    }
+
     /* Subtle Superscript Citations */
     sup {
         font-size: 0.70em !important;
@@ -180,11 +235,11 @@ st.markdown("""
         color: #0f172a !important;
     }
 
-    /* Clean Chat Message Styling (No left gray avatar artifact) */
+    /* Hide Streamlit default avatars */
     div[data-testid="stChatMessage"] {
-        background-color: transparent !important;
+        background: transparent !important;
         border: none !important;
-        padding: 8px 0 !important;
+        padding: 0 !important;
         gap: 0 !important;
     }
     div[data-testid="stChatMessageAvatarUser"],
@@ -192,48 +247,47 @@ st.markdown("""
     div[data-testid="chatAvatarIcon-user"],
     div[data-testid="chatAvatarIcon-assistant"] {
         display: none !important;
-        width: 0 !important;
-        height: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
     }
     div[data-testid="stChatMessageContent"] {
         padding: 0 !important;
         margin: 0 !important;
-        color: #18181b !important;
-        font-size: 0.94rem !important;
-        line-height: 1.65 !important;
+        width: 100% !important;
     }
 
-    /* Bottom Chat Input Bar - Remove ALL red borders & gray left artifacts */
+    /* Seamless Fixed Bottom Chat Input Bar */
+    .stChatFloatingInputContainer {
+        background: transparent !important;
+        padding-bottom: 1.5rem !important;
+    }
     div[data-testid="stChatInput"] {
         max-width: 800px !important;
         margin: 0 auto !important;
-        padding: 0 !important;
-    }
-    div[data-testid="stChatInput"],
-    div[data-testid="stChatInput"] * {
-        outline: none !important;
+        background: transparent !important;
+        border: none !important;
     }
     div[data-testid="stChatInput"] > div {
         background-color: #ffffff !important;
         border: 1px solid #e4e4e7 !important;
         border-radius: 24px !important;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
-        padding: 2px 10px !important;
+        padding: 3px 12px !important;
         transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+        overflow: hidden !important;
     }
     div[data-testid="stChatInput"] > div:focus-within {
         border-color: #71717a !important;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
     }
+    div[data-testid="stChatInput"] [data-baseweb="base-input"],
+    div[data-testid="stChatInput"] [data-baseweb="textarea"],
     div[data-testid="stChatInput"] textarea {
-        background-color: transparent !important;
+        background: transparent !important;
         border: none !important;
+        outline: none !important;
         box-shadow: none !important;
         color: #18181b !important;
         font-size: 0.92rem !important;
-        padding: 10px 12px !important;
+        padding: 8px 8px !important;
     }
     div[data-testid="stChatInput"] button {
         background: transparent !important;
@@ -288,6 +342,7 @@ st.markdown("""
         background: #fafafa !important;
         box-shadow: none !important;
         margin-top: 8px !important;
+        width: 100% !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -467,7 +522,8 @@ with col_right:
             {
                 "role": "assistant",
                 "content": "Hey, how may I help you today?",
-                "citations": []
+                "citations": [],
+                "response_time": None
             }
         ]
         st.rerun()
@@ -476,11 +532,21 @@ st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
-# Chat Conversation History
+# Chat Conversation History (Left LLM, Right User)
 # -----------------------------------------------------------------------------
 for message in st.session_state["messages"]:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"], unsafe_allow_html=True)
+    if message["role"] == "user":
+        st.markdown(f"""
+        <div class="user-bubble-container">
+            <div class="user-bubble">{message['content']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="assistant-response-container">
+            <div>{message['content']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
         citations = message.get("citations", [])
         if citations:
@@ -492,6 +558,11 @@ for message in st.session_state["messages"]:
                     st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
                     st.markdown(f"> *\"{c.get('snippet')}\"*")
 
+        if message.get("response_time") is not None:
+            st.markdown(f"""
+            <div class="response-time-meta">⚡ Response time: {message['response_time']:.2f}s</div>
+            """, unsafe_allow_html=True)
+
 
 # -----------------------------------------------------------------------------
 # ChatGPT-style Input Bar & Thinking Animation Handler
@@ -500,57 +571,72 @@ user_query = st.chat_input("Message DaSH Chatbot...")
 
 if user_query:
     st.session_state["messages"].append({"role": "user", "content": user_query})
-    with st.chat_message("user"):
-        st.markdown(user_query)
+    
+    st.markdown(f"""
+    <div class="user-bubble-container">
+        <div class="user-bubble">{user_query}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    with st.chat_message("assistant"):
-        # 3 Jumping Thinking Dots Indicator
-        thinking_placeholder = st.empty()
-        thinking_placeholder.markdown("""
-        <div class="thinking-dots">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-        </div>
-        """, unsafe_allow_html=True)
+    # 3 Jumping Thinking Dots Indicator
+    thinking_placeholder = st.empty()
+    thinking_placeholder.markdown("""
+    <div class="thinking-dots">
+        <span class="dot"></span>
+        <span class="dot"></span>
+        <span class="dot"></span>
+    </div>
+    """, unsafe_allow_html=True)
 
-        try:
-            response = http_session.post(
-                f"{PYTHON_API_URL}/api/chat",
-                json={"query": user_query, "top_k": 4},
-                timeout=90
-            )
+    t0 = time.time()
 
-            if response.status_code == 200:
-                data = response.json()
-                answer = data.get("answer", "")
-                citations = data.get("citations", [])
+    try:
+        response = http_session.post(
+            f"{PYTHON_API_URL}/api/chat",
+            json={"query": user_query, "top_k": 4},
+            timeout=90
+        )
+        elapsed_sec = time.time() - t0
 
-                # Clear jumping dots and render answer
-                thinking_placeholder.empty()
-                st.markdown(answer, unsafe_allow_html=True)
+        if response.status_code == 200:
+            data = response.json()
+            answer = data.get("answer", "")
+            citations = data.get("citations", [])
 
-                if citations:
-                    with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
-                        for idx, c in enumerate(citations):
-                            doc = c.get('document', 'Document')
-                            section = f" -> {c.get('section')}" if c.get('section') else ""
-                            page = f" -> Page {c.get('page')}" if c.get('page') else ""
-                            st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
-                            st.markdown(f"> *\"{c.get('snippet')}\"*")
-
-                st.session_state["messages"].append({
-                    "role": "assistant",
-                    "content": answer,
-                    "citations": citations
-                })
-            else:
-                thinking_placeholder.empty()
-                err = f"API Error ({response.status_code}): {response.text}"
-                st.error(err)
-                st.session_state["messages"].append({"role": "assistant", "content": err, "citations": []})
-        except Exception as ex:
+            # Clear jumping dots and render answer
             thinking_placeholder.empty()
-            err = f"Failed to communicate with AI Engine: {str(ex)}"
+            st.markdown(f"""
+            <div class="assistant-response-container">
+                <div>{answer}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if citations:
+                with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
+                    for idx, c in enumerate(citations):
+                        doc = c.get('document', 'Document')
+                        section = f" -> {c.get('section')}" if c.get('section') else ""
+                        page = f" -> Page {c.get('page')}" if c.get('page') else ""
+                        st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
+                        st.markdown(f"> *\"{c.get('snippet')}\"*")
+
+            st.markdown(f"""
+            <div class="response-time-meta">⚡ Response time: {elapsed_sec:.2f}s</div>
+            """, unsafe_allow_html=True)
+
+            st.session_state["messages"].append({
+                "role": "assistant",
+                "content": answer,
+                "citations": citations,
+                "response_time": elapsed_sec
+            })
+        else:
+            thinking_placeholder.empty()
+            err = f"API Error ({response.status_code}): {response.text}"
             st.error(err)
-            st.session_state["messages"].append({"role": "assistant", "content": err, "citations": []})
+            st.session_state["messages"].append({"role": "assistant", "content": err, "citations": [], "response_time": None})
+    except Exception as ex:
+        thinking_placeholder.empty()
+        err = f"Failed to communicate with AI Engine: {str(ex)}"
+        st.error(err)
+        st.session_state["messages"].append({"role": "assistant", "content": err, "citations": [], "response_time": None})
