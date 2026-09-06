@@ -113,7 +113,7 @@ st.markdown("""
         margin: 0 auto !important;
     }
 
-    /* Top Navigation Bar */
+    /* Top Navigation Bar: User badge */
     .top-bar-user {
         display: inline-flex;
         align-items: center;
@@ -133,30 +133,34 @@ st.markdown("""
         background-color: #10b981;
     }
 
-    /* Align Terminate Session Button to the far right */
-    div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] {
-        display: flex !important;
-        justify-content: flex-end !important;
-        width: 100% !important;
+    /* Fixed Top-Right Corner Terminate Session Button */
+    .terminate-btn-fixed {
+        position: fixed !important;
+        top: 16px !important;
+        right: 24px !important;
+        z-index: 9999 !important;
     }
+    .terminate-btn-fixed button,
     div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button {
-        margin-left: auto !important;
         background-color: #fff1f2 !important;
         color: #e11d48 !important;
         border: 1px solid #fecdd3 !important;
         border-radius: 20px !important;
-        padding: 3px 14px !important;
+        padding: 4px 14px !important;
         font-size: 0.78rem !important;
         font-weight: 600 !important;
         transition: all 0.15s ease !important;
-        box-shadow: none !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
         height: auto !important;
         min-height: unset !important;
     }
+    .terminate-btn-fixed button:hover,
     div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button:hover {
         background-color: #ffe4e6 !important;
         border-color: #fda4af !important;
         color: #be123c !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(225, 29, 72, 0.1) !important;
     }
 
     /* Right-aligned User Chat Bubble */
@@ -183,7 +187,7 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        margin-top: 10px;
+        margin-top: 12px;
         margin-bottom: 6px;
     }
     .ai-chevron {
@@ -210,7 +214,7 @@ st.markdown("""
         font-size: 0.72rem;
         color: #94a3b8;
         margin-top: 8px;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
         font-weight: 500;
         letter-spacing: 0.01em;
     }
@@ -228,68 +232,39 @@ st.markdown("""
         letter-spacing: -0.02em !important;
     }
 
-    /* Interactive Dropdown Citations */
-    .citations-block {
-        margin-top: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        width: 100%;
+    /* Interactive Native Dropdown Expander Styling */
+    div[data-testid="stExpander"] {
+        border: 1px solid #e4e4e7 !important;
+        border-radius: 8px !important;
+        background-color: #fafafa !important;
+        margin: 4px 0 !important;
+        box-shadow: none !important;
+        transition: all 0.15s ease !important;
+        overflow: hidden !important;
     }
-    .cite-dropdown {
-        border: 1px solid #e4e4e7;
-        border-radius: 8px;
-        background-color: #fafafa;
-        overflow: hidden;
-        font-size: 0.80rem;
-        transition: all 0.15s ease;
+    div[data-testid="stExpander"]:hover {
+        background-color: #f4f4f5 !important;
+        border-color: #d4d4d8 !important;
     }
-    .cite-dropdown[open] {
-        background-color: #ffffff;
-        border-color: #d4d4d8;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    div[data-testid="stExpander"] summary {
+        font-size: 0.80rem !important;
+        font-weight: 600 !important;
+        color: #1e293b !important;
+        padding: 6px 12px !important;
+        cursor: pointer !important;
     }
-    .cite-summary {
-        cursor: pointer;
-        padding: 7px 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        user-select: none;
-        font-weight: 500;
-        color: #334155;
-        list-style: none;
+    div[data-testid="stExpander"] summary svg {
+        width: 14px !important;
+        height: 14px !important;
+        color: #64748b !important;
     }
-    .cite-summary::-webkit-details-marker {
-        display: none;
-    }
-    .cite-badge {
-        font-weight: 700;
-        color: #6366f1;
-        font-size: 0.76rem;
-    }
-    .cite-title {
-        color: #0f172a;
-        font-weight: 600;
-        font-size: 0.80rem;
-    }
-    .cite-icon {
-        margin-left: auto;
-        color: #94a3b8;
-        font-size: 0.74rem;
-        transition: transform 0.2s ease;
-    }
-    .cite-dropdown[open] .cite-icon {
-        transform: rotate(180deg);
-    }
-    .cite-body {
-        padding: 8px 14px 10px 14px;
-        border-top: 1px solid #f1f5f9;
-        background-color: #f8fafc;
-        color: #475569;
-        font-size: 0.78rem;
-        line-height: 1.5;
-        font-style: italic;
+    div[data-testid="stExpanderDetails"] {
+        padding: 8px 14px !important;
+        background-color: #ffffff !important;
+        border-top: 1px solid #f1f5f9 !important;
+        color: #475569 !important;
+        font-size: 0.80rem !important;
+        line-height: 1.55 !important;
     }
 
     /* Code Blocks */
@@ -428,35 +403,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-
-def build_citations_dropdown(citations: list) -> str:
-    """
-    Renders an interactive, clickable HTML dropdown for sources and citations.
-    """
-    if not citations:
-        return ""
-    
-    html = '<div class="citations-block">'
-    for idx, c in enumerate(citations):
-        doc = c.get('document', 'Document')
-        section = f" › {c.get('section')}" if c.get('section') else ""
-        page = f" › Page {c.get('page')}" if c.get('page') else ""
-        snippet = c.get('snippet', '')
-        html += f"""
-        <details class="cite-dropdown">
-            <summary class="cite-summary">
-                <span class="cite-badge">[{idx+1}]</span>
-                <span class="cite-title">{doc}{section}{page}</span>
-                <span class="cite-icon">▾</span>
-            </summary>
-            <div class="cite-body">
-                "{snippet}"
-            </div>
-        </details>
-        """
-    html += '</div>'
-    return html
 
 
 # -----------------------------------------------------------------------------
@@ -612,34 +558,31 @@ if not st.session_state["authenticated"]:
 
 
 # -----------------------------------------------------------------------------
-# Authenticated Screen: Top Navigation Bar (Aligned with chat content)
+# Authenticated Screen: Top Navigation Bar
 # -----------------------------------------------------------------------------
-col_left, col_right = st.columns([5, 5])
-
-with col_left:
-    st.markdown(f"""
-    <div style="display: flex; align-items: center; gap: 10px;">
-        <div class="top-bar-user">
-            <span class="top-bar-dot"></span>
-            <span>{st.session_state['username']}</span>
-        </div>
+st.markdown(f"""
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 12px;">
+    <div class="top-bar-user">
+        <span class="top-bar-dot"></span>
+        <span>{st.session_state['username']}</span>
     </div>
-    """, unsafe_allow_html=True)
+</div>
+""", unsafe_allow_html=True)
 
-with col_right:
-    if st.button("Terminate Session", key="btn_logout", use_container_width=False):
-        st.session_state["authenticated"] = False
-        st.session_state["messages"] = [
-            {
-                "role": "assistant",
-                "content": "Hey, how may I help you today?",
-                "citations": [],
-                "response_time": None
-            }
-        ]
-        st.rerun()
-
-st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+# Fixed top-right corner Terminate button
+st.markdown('<div class="terminate-btn-fixed">', unsafe_allow_html=True)
+if st.button("Terminate Session", key="btn_logout_corner", use_container_width=False):
+    st.session_state["authenticated"] = False
+    st.session_state["messages"] = [
+        {
+            "role": "assistant",
+            "content": "Hey, how may I help you today?",
+            "citations": [],
+            "response_time": None
+        }
+    ]
+    st.rerun()
+st.markdown('</div>', unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
@@ -664,7 +607,13 @@ for message in st.session_state["messages"]:
 
         citations = message.get("citations", [])
         if citations:
-            st.markdown(build_citations_dropdown(citations), unsafe_allow_html=True)
+            for idx, c in enumerate(citations):
+                doc = c.get('document', 'Document')
+                section = f" › {c.get('section')}" if c.get('section') else ""
+                page = f" › Page {c.get('page')}" if c.get('page') else ""
+                snippet = c.get('snippet', '')
+                with st.expander(f"[{idx+1}] {doc}{section}{page}", expanded=False):
+                    st.markdown(f"> *\"{snippet}\"*")
 
         if message.get("response_time") is not None:
             st.markdown(f"""
@@ -724,7 +673,13 @@ if user_query:
             st.markdown(answer, unsafe_allow_html=True)
 
             if citations:
-                st.markdown(build_citations_dropdown(citations), unsafe_allow_html=True)
+                for idx, c in enumerate(citations):
+                    doc = c.get('document', 'Document')
+                    section = f" › {c.get('section')}" if c.get('section') else ""
+                    page = f" › Page {c.get('page')}" if c.get('page') else ""
+                    snippet = c.get('snippet', '')
+                    with st.expander(f"[{idx+1}] {doc}{section}{page}", expanded=False):
+                        st.markdown(f"> *\"{snippet}\"*")
 
             st.markdown(f"""
             <div class="response-time-meta">⚡ Response time: {elapsed_sec:.2f}s</div>
