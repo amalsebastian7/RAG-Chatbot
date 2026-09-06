@@ -64,7 +64,7 @@ if "messages" not in st.session_state:
 # -----------------------------------------------------------------------------
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
     /* Global Typography & Palette */
     html, body, [class*="css"] {
@@ -159,7 +159,7 @@ st.markdown("""
     .user-bubble-container {
         display: flex;
         justify-content: flex-end;
-        margin: 12px 0;
+        margin: 14px 0 10px 0;
         width: 100%;
     }
     .user-bubble {
@@ -174,16 +174,28 @@ st.markdown("""
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     }
 
-    /* Left-aligned Assistant Message */
-    .assistant-response-container {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        margin: 8px 0 14px 0;
-        width: 100%;
-        color: #18181b;
-        font-size: 0.94rem;
-        line-height: 1.65;
+    /* Colorful Minimal AI Response Tag (>> Marker) */
+    .ai-response-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        margin-bottom: 6px;
+    }
+    .ai-chevron {
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 900;
+        font-size: 0.92rem;
+        letter-spacing: -0.06em;
+    }
+    .ai-tag-name {
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: #71717a;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
     }
 
     /* Response Time Latency Tag */
@@ -194,6 +206,7 @@ st.markdown("""
         font-size: 0.72rem;
         color: #94a3b8;
         margin-top: 8px;
+        margin-bottom: 6px;
         font-weight: 500;
         letter-spacing: 0.01em;
     }
@@ -254,7 +267,7 @@ st.markdown("""
         width: 100% !important;
     }
 
-    /* Seamless Fixed Bottom Chat Input Bar */
+    /* Seamless Fixed Bottom Chat Input Bar with Centered Send Button */
     .stChatFloatingInputContainer {
         background: transparent !important;
         padding-bottom: 1.5rem !important;
@@ -270,9 +283,13 @@ st.markdown("""
         border: 1px solid #e4e4e7 !important;
         border-radius: 24px !important;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
-        padding: 3px 12px !important;
+        padding: 4px 14px !important;
         transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
         overflow: hidden !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        min-height: 48px !important;
     }
     div[data-testid="stChatInput"] > div:focus-within {
         border-color: #71717a !important;
@@ -287,12 +304,19 @@ st.markdown("""
         box-shadow: none !important;
         color: #18181b !important;
         font-size: 0.92rem !important;
-        padding: 8px 8px !important;
+        padding: 6px 4px !important;
+        align-self: center !important;
     }
     div[data-testid="stChatInput"] button {
         background: transparent !important;
         border: none !important;
         color: #71717a !important;
+        align-self: center !important;
+        margin: 0 !important;
+        padding: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     div[data-testid="stChatInput"] button:hover {
         color: #18181b !important;
@@ -542,11 +566,14 @@ for message in st.session_state["messages"]:
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.markdown(f"""
-        <div class="assistant-response-container">
-            <div>{message['content']}</div>
+        st.markdown("""
+        <div class="ai-response-tag">
+            <span class="ai-chevron">❯❯</span>
+            <span class="ai-tag-name">DaSH</span>
         </div>
         """, unsafe_allow_html=True)
+
+        st.markdown(message["content"], unsafe_allow_html=True)
 
         citations = message.get("citations", [])
         if citations:
@@ -605,11 +632,15 @@ if user_query:
 
             # Clear jumping dots and render answer
             thinking_placeholder.empty()
-            st.markdown(f"""
-            <div class="assistant-response-container">
-                <div>{answer}</div>
+
+            st.markdown("""
+            <div class="ai-response-tag">
+                <span class="ai-chevron">❯❯</span>
+                <span class="ai-tag-name">DaSH</span>
             </div>
             """, unsafe_allow_html=True)
+
+            st.markdown(answer, unsafe_allow_html=True)
 
             if citations:
                 with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
