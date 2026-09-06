@@ -58,7 +58,7 @@ if "messages" not in st.session_state:
     ]
 
 # -----------------------------------------------------------------------------
-# Global Styling - Unified Clean Minimalist & Code Aesthetics
+# Global Styling - Minimalist Design System
 # -----------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -93,7 +93,7 @@ st.markdown("""
         pointer-events: none !important;
     }
 
-    /* Constrain main conversation container to ChatGPT ergonomic width */
+    /* Main Container */
     .main .block-container {
         max-width: 800px !important;
         padding-top: 1.2rem !important;
@@ -156,7 +156,7 @@ st.markdown("""
         letter-spacing: -0.02em !important;
     }
 
-    /* Code Blocks & In-line Code Snippets */
+    /* Code Blocks */
     code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
         background-color: #f1f5f9 !important;
@@ -180,40 +180,105 @@ st.markdown("""
         color: #0f172a !important;
     }
 
-    /* Chat Messages - ChatGPT aesthetic */
+    /* Clean Chat Message Styling (No left gray avatar artifact) */
     div[data-testid="stChatMessage"] {
         background-color: transparent !important;
         border: none !important;
-        padding: 14px 0 !important;
+        padding: 8px 0 !important;
+        gap: 0 !important;
+    }
+    div[data-testid="stChatMessageAvatarUser"],
+    div[data-testid="stChatMessageAvatarAssistant"],
+    div[data-testid="chatAvatarIcon-user"],
+    div[data-testid="chatAvatarIcon-assistant"] {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    div[data-testid="stChatMessageContent"] {
+        padding: 0 !important;
+        margin: 0 !important;
+        color: #18181b !important;
         font-size: 0.94rem !important;
         line-height: 1.65 !important;
     }
-    div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatarIcon-user"]) {
-        background-color: #f4f4f5 !important;
-        border-radius: 16px !important;
-        padding: 12px 18px !important;
-        margin-bottom: 12px !important;
-    }
 
-    /* ChatGPT Bottom Fixed Input Bar */
+    /* Bottom Chat Input Bar - Remove ALL red borders & gray left artifacts */
     div[data-testid="stChatInput"] {
         max-width: 800px !important;
         margin: 0 auto !important;
         padding: 0 !important;
     }
-    div[data-testid="stChatInput"] textarea {
+    div[data-testid="stChatInput"],
+    div[data-testid="stChatInput"] * {
+        outline: none !important;
+    }
+    div[data-testid="stChatInput"] > div {
         background-color: #ffffff !important;
-        border: 1px solid #d4d4d8 !important;
+        border: 1px solid #e4e4e7 !important;
         border-radius: 24px !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+        padding: 2px 10px !important;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    }
+    div[data-testid="stChatInput"] > div:focus-within {
+        border-color: #71717a !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+    }
+    div[data-testid="stChatInput"] textarea {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
         color: #18181b !important;
         font-size: 0.92rem !important;
-        padding: 12px 20px !important;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
-        transition: all 0.15s ease !important;
+        padding: 10px 12px !important;
     }
-    div[data-testid="stChatInput"] textarea:focus {
-        border-color: #18181b !important;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+    div[data-testid="stChatInput"] button {
+        background: transparent !important;
+        border: none !important;
+        color: #71717a !important;
+    }
+    div[data-testid="stChatInput"] button:hover {
+        color: #18181b !important;
+    }
+
+    /* 3 Jumping Thinking Dots */
+    .thinking-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 0;
+        margin: 4px 0;
+    }
+    .thinking-dots .dot {
+        width: 7px;
+        height: 7px;
+        background-color: #94a3b8;
+        border-radius: 50%;
+        display: inline-block;
+        animation: bounce-dot 1.4s infinite ease-in-out both;
+    }
+    .thinking-dots .dot:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+    .thinking-dots .dot:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+    .thinking-dots .dot:nth-child(3) {
+        animation-delay: 0s;
+    }
+    @keyframes bounce-dot {
+        0%, 80%, 100% {
+            transform: scale(0.4);
+            opacity: 0.3;
+        }
+        40% {
+            transform: scale(1.15);
+            opacity: 1;
+            background-color: #18181b;
+        }
     }
 
     /* Expander / Citations */
@@ -229,56 +294,54 @@ st.markdown("""
 
 
 # -----------------------------------------------------------------------------
-# Login Screen Component - Compact ChatGPT Format
+# Login Screen Component - Strictly Compact (300px Standard)
 # -----------------------------------------------------------------------------
 def render_login_portal() -> None:
     """
-    Renders an artistic, compact, plain white login gateway for DaSH Chatbot.
+    Renders an ultra-compact, minimalist login gateway aligned with standard login modal dimensions.
     """
     st.markdown("""
     <style>
-        .main .block-container {
-            max-width: 310px !important;
-            padding-top: 14vh !important;
-            padding-bottom: 6vh !important;
-            margin: 0 auto !important;
+        .dash-login-wrapper {
+            max-width: 300px;
+            margin: 0 auto;
         }
-
         .dash-brand-icon {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 40px;
-            height: 40px;
+            width: 38px;
+            height: 38px;
             background: #18181b;
             color: #ffffff;
-            border-radius: 10px;
-            margin-bottom: 12px;
-            font-size: 1.1rem;
+            border-radius: 9px;
+            margin-bottom: 10px;
+            font-size: 1.05rem;
             font-weight: 700;
         }
-
         .dash-title {
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             font-weight: 300;
             letter-spacing: -0.03em;
             color: #09090b;
             margin-bottom: 2px;
         }
-
         .dash-title span {
             font-weight: 700;
         }
-
         .dash-subtitle {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: #71717a;
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }
-
-        /* Form Inputs - Compact Height */
+        div[data-testid="stForm"] {
+            max-width: 300px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+        }
         div[data-testid="stTextInput"] {
-            margin-bottom: 4px;
+            max-width: 300px !important;
+            margin: 0 auto 4px auto !important;
         }
         div[data-testid="stTextInput"] label {
             color: #52525b !important;
@@ -291,43 +354,43 @@ def render_login_portal() -> None:
             border: 1px solid #e4e4e7 !important;
             border-radius: 8px !important;
             color: #09090b !important;
-            font-size: 0.86rem !important;
-            padding: 8px 12px !important;
-            height: 38px !important;
-            transition: all 0.15s ease-in-out !important;
+            font-size: 0.85rem !important;
+            padding: 7px 11px !important;
+            height: 36px !important;
+            width: 100% !important;
         }
         div[data-testid="stTextInput"] input:focus {
             border-color: #18181b !important;
             box-shadow: 0 0 0 1px #18181b !important;
         }
-
-        /* Form Submit Button */
+        div[data-testid="stFormSubmitButton"] {
+            max-width: 300px !important;
+            margin: 0 auto !important;
+        }
         div[data-testid="stFormSubmitButton"] button {
             background-color: #18181b !important;
             color: #ffffff !important;
             border: 1px solid #18181b !important;
             border-radius: 8px !important;
-            padding: 8px 14px !important;
+            padding: 7px 12px !important;
             font-weight: 600 !important;
-            font-size: 0.86rem !important;
-            margin-top: 8px !important;
+            font-size: 0.85rem !important;
+            margin-top: 6px !important;
             width: 100% !important;
-            height: 38px !important;
+            height: 36px !important;
             transition: all 0.2s ease !important;
         }
         div[data-testid="stFormSubmitButton"] button:hover {
             background-color: #27272a !important;
-            border-color: #27272a !important;
         }
-
-        /* Demo Credentials Box */
         .dash-demo-box {
-            margin-top: 22px;
-            padding: 10px 14px;
+            max-width: 300px;
+            margin: 18px auto 0 auto;
+            padding: 9px 12px;
             background: #fafafa;
             border: 1px solid #f4f4f5;
             border-radius: 8px;
-            font-size: 0.72rem;
+            font-size: 0.70rem;
             color: #71717a;
             line-height: 1.5;
             text-align: left;
@@ -338,39 +401,43 @@ def render_login_portal() -> None:
             border: 1px solid #e4e4e7;
             padding: 1px 4px;
             border-radius: 4px;
-            font-size: 0.72rem;
+            font-size: 0.70rem;
         }
     </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div style="text-align: center;">
-        <div class="dash-brand-icon">D</div>
-        <div class="dash-title"><span>DaSH</span> Chatbot</div>
-        <div class="dash-subtitle">Enter your credentials to continue</div>
-    </div>
-    """, unsafe_allow_html=True)
+    _, col_center, _ = st.columns([1.6, 1.0, 1.6])
 
-    with st.form("auth_form", border=False):
-        user_input = st.text_input("Username", placeholder="e.g. admin")
-        pass_input = st.text_input("Password", type="password", placeholder="••••••••")
-        submitted = st.form_submit_button("Log in", use_container_width=True)
+    with col_center:
+        st.markdown("<div style='height: 12vh;'></div>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="dash-login-wrapper" style="text-align: center;">
+            <div class="dash-brand-icon">D</div>
+            <div class="dash-title"><span>DaSH</span> Chatbot</div>
+            <div class="dash-subtitle">Enter your credentials to continue</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        if submitted:
-            if user_input in CREDENTIALS and CREDENTIALS[user_input] == pass_input:
-                st.session_state["authenticated"] = True
-                st.session_state["username"] = user_input
-                st.rerun()
-            else:
-                st.error("Invalid credentials.")
+        with st.form("auth_form", border=False):
+            user_input = st.text_input("Username", placeholder="e.g. admin")
+            pass_input = st.text_input("Password", type="password", placeholder="••••••••")
+            submitted = st.form_submit_button("Log in", use_container_width=True)
 
-    st.markdown("""
-    <div class="dash-demo-box">
-        <div style="font-weight: 600; color: #18181b; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em;">Demo Accounts</div>
-        <div>Admin: <code>admin</code> / <code>sopsecure2026</code></div>
-        <div>Analyst: <code>analyst</code> / <code>enterprise2026</code></div>
-    </div>
-    """, unsafe_allow_html=True)
+            if submitted:
+                if user_input in CREDENTIALS and CREDENTIALS[user_input] == pass_input:
+                    st.session_state["authenticated"] = True
+                    st.session_state["username"] = user_input
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials.")
+
+        st.markdown("""
+        <div class="dash-demo-box">
+            <div style="font-weight: 600; color: #18181b; margin-bottom: 2px; text-transform: uppercase; font-size: 0.64rem; letter-spacing: 0.05em;">Demo Accounts</div>
+            <div>Admin: <code>admin</code> / <code>sopsecure2026</code></div>
+            <div>Analyst: <code>analyst</code> / <code>enterprise2026</code></div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 if not st.session_state["authenticated"]:
@@ -427,7 +494,7 @@ for message in st.session_state["messages"]:
 
 
 # -----------------------------------------------------------------------------
-# ChatGPT-style Input Bar & Response Handler
+# ChatGPT-style Input Bar & Thinking Animation Handler
 # -----------------------------------------------------------------------------
 user_query = st.chat_input("Message DaSH Chatbot...")
 
@@ -437,40 +504,53 @@ if user_query:
         st.markdown(user_query)
 
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            try:
-                response = http_session.post(
-                    f"{PYTHON_API_URL}/api/chat",
-                    json={"query": user_query, "top_k": 4},
-                    timeout=90
-                )
+        # 3 Jumping Thinking Dots Indicator
+        thinking_placeholder = st.empty()
+        thinking_placeholder.markdown("""
+        <div class="thinking-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+        """, unsafe_allow_html=True)
 
-                if response.status_code == 200:
-                    data = response.json()
-                    answer = data.get("answer", "")
-                    citations = data.get("citations", [])
+        try:
+            response = http_session.post(
+                f"{PYTHON_API_URL}/api/chat",
+                json={"query": user_query, "top_k": 4},
+                timeout=90
+            )
 
-                    st.markdown(answer, unsafe_allow_html=True)
+            if response.status_code == 200:
+                data = response.json()
+                answer = data.get("answer", "")
+                citations = data.get("citations", [])
 
-                    if citations:
-                        with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
-                            for idx, c in enumerate(citations):
-                                doc = c.get('document', 'Document')
-                                section = f" -> {c.get('section')}" if c.get('section') else ""
-                                page = f" -> Page {c.get('page')}" if c.get('page') else ""
-                                st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
-                                st.markdown(f"> *\"{c.get('snippet')}\"*")
+                # Clear jumping dots and render answer
+                thinking_placeholder.empty()
+                st.markdown(answer, unsafe_allow_html=True)
 
-                    st.session_state["messages"].append({
-                        "role": "assistant",
-                        "content": answer,
-                        "citations": citations
-                    })
-                else:
-                    err = f"API Error ({response.status_code}): {response.text}"
-                    st.error(err)
-                    st.session_state["messages"].append({"role": "assistant", "content": err, "citations": []})
-            except Exception as ex:
-                err = f"Failed to communicate with AI Engine: {str(ex)}"
+                if citations:
+                    with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
+                        for idx, c in enumerate(citations):
+                            doc = c.get('document', 'Document')
+                            section = f" -> {c.get('section')}" if c.get('section') else ""
+                            page = f" -> Page {c.get('page')}" if c.get('page') else ""
+                            st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
+                            st.markdown(f"> *\"{c.get('snippet')}\"*")
+
+                st.session_state["messages"].append({
+                    "role": "assistant",
+                    "content": answer,
+                    "citations": citations
+                })
+            else:
+                thinking_placeholder.empty()
+                err = f"API Error ({response.status_code}): {response.text}"
                 st.error(err)
                 st.session_state["messages"].append({"role": "assistant", "content": err, "citations": []})
+        except Exception as ex:
+            thinking_placeholder.empty()
+            err = f"Failed to communicate with AI Engine: {str(ex)}"
+            st.error(err)
+            st.session_state["messages"].append({"role": "assistant", "content": err, "citations": []})
