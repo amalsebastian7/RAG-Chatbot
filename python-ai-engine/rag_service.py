@@ -293,20 +293,26 @@ class RAGService:
             if dist_val > COSINE_SIMILARITY_THRESHOLD and len(context_blocks) >= top_k:
                 continue
 
-            doc_name = meta.get("document_name", "Unknown SOP")
-            page = meta.get("page", 1)
-            section = meta.get("section", "General")
+            meta_dict = meta if isinstance(meta, dict) else {}
+            doc_name = meta_dict.get("document_name", "Unknown SOP")
+            page = meta_dict.get("page", 1)
+            section = meta_dict.get("section", "General")
+
+            clean_snippet = " ".join(text.split())
+            if len(clean_snippet) > 240:
+                clean_snippet = clean_snippet[:240] + "..."
 
             citations.append({
+                "index": len(context_blocks) + 1,
                 "document": doc_name,
                 "page": page,
                 "section": section,
-                "snippet": text[:220] + ("..." if len(text) > 220 else ""),
+                "snippet": clean_snippet,
                 "distance": round(dist_val, 4)
             })
 
             context_blocks.append(
-                f"[SOURCE {len(context_blocks) + 1} | {doc_name} | Page {page} | Section: {section}]\n{text}\n"
+                f"[{len(context_blocks) + 1}] Document: {doc_name} | Section: {section} | Page: {page}\nExcerpt: {text}\n"
             )
             
             if len(context_blocks) >= top_k:
@@ -324,23 +330,23 @@ class RAGService:
 
         # 4. Construct Strict Grounding System Instructions
         system_instruction = (
-            "You are an enterprise AI assistant for corporate Standard Operating Procedures (SOPs).\n"
-            "Your sole mission is to answer questions accurately and strictly based on the provided context.\n\n"
-            "MANDATORY OPERATIONAL RULES:\n"
-            "1. Answer ONLY using the facts explicitly stated in the context below.\n"
-            "2. If the context does not contain enough evidence to answer the question, state EXACTLY:\n"
-            "   \"I don't know based on the provided documents.\"\n"
-            "3. Do NOT extrapolate, speculate, or utilize external world knowledge.\n"
-            "4. Every factual assertion MUST cite its source document, page, and section "
-            "(e.g., [SOP-001-IT-Policy.pdf, Page 4, Section: Password Requirements])."
+            "You are an enterprise AI assistant for technical documentation and SOPs.\n"
+            "Your mission is to answer user questions accurately and strictly based on the provided context.\n\n"
+            "MANDATORY CITATION & ANSWER RULES:\n"
+            "1. Answer the question directly and clearly using only the provided excerpts.\n"
+            "2. Cite your sources using bracketed numbers like [1], [2] directly inline in your sentences (e.g. 'P1 issues require response within 15 minutes [1].').\n"
+            "3. Do NOT write full document names or page paths in the body text — use ONLY the bracketed numbers like [1] or [2].\n"
+            "4. Do NOT include a separate bibliography/sources list at the end of your response, as the system UI renders that automatically.\n"
+            "5. If the provided context does not contain enough information to answer the question, state EXACTLY:\n"
+            "   \"I don't know based on the provided documents.\""
         )
 
         user_prompt = (
-            f"OFFICIAL SOP CONTEXT:\n"
+            f"REFERENCE CONTEXT:\n"
             f"{formatted_context}\n"
-            f"EMPLOYEE QUESTION:\n"
+            f"USER QUESTION:\n"
             f"{user_query}\n\n"
-            f"Provide a concise, direct, grounded answer with clear citations:"
+            f"Provide the answer with inline [1], [2] citations:"
         )
 
         try:

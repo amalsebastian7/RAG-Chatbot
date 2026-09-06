@@ -4,12 +4,14 @@ from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 import streamlit as st
 
-# Configure layout and browser metadata
+# -----------------------------------------------------------------------------
+# Page Configuration
+# -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Enterprise Local RAG Chatbot",
-    page_icon="🛡️",
+    page_title="DaSH Chatbot",
+    page_icon="💬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 PYTHON_API_URL = os.getenv("PYTHON_API_URL", "http://localhost:8000")
@@ -18,16 +20,7 @@ JAVA_API_URL = os.getenv("JAVA_API_URL", "http://localhost:8080")
 
 def create_resilient_session() -> requests.Session:
     """
-    Function:
-        Constructs and configures a thread-safe requests.Session equipped with connection pooling
-        and exponential backoff retry policies. Avoids socket exhaustion and reduces network latency
-        for high-frequency status polling in the Streamlit runtime.
-
-    Input:
-        None: Uses system default networking parameters.
-
-    Output:
-        requests.Session: Configured HTTP session with persistent connection pooling.
+    Constructs a persistent requests.Session with connection pooling and retry strategy.
     """
     session = requests.Session()
     retry_strategy = Retry(
@@ -41,64 +34,10 @@ def create_resilient_session() -> requests.Session:
     return session
 
 
-# Shared persistent session singleton
 http_session = create_resilient_session()
 
-# Enterprise Dark Theme Styling
-st.markdown("""
-<style>
-    .stApp {
-        background: radial-gradient(circle at 10% 20%, #0f172a 0%, #020617 90%);
-        color: #f8fafc;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    .hero-card {
-        background: rgba(30, 41, 59, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        padding: 20px 24px;
-        margin-bottom: 24px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    }
-    .hero-title {
-        font-size: 1.8rem;
-        font-weight: 700;
-        margin: 0;
-        background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    .hero-subtitle {
-        font-size: 0.95rem;
-        color: #94a3b8;
-        margin-top: 6px;
-        margin-bottom: 0;
-    }
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .status-online {
-        background: rgba(34, 197, 94, 0.15);
-        color: #4ade80;
-        border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    .status-offline {
-        background: rgba(239, 68, 68, 0.15);
-        color: #f87171;
-        border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # -----------------------------------------------------------------------------
-# US-01: Authentication State
+# Authentication State
 # -----------------------------------------------------------------------------
 CREDENTIALS = {
     "admin": "sopsecure2026",
@@ -113,55 +52,306 @@ if "messages" not in st.session_state:
     st.session_state["messages"] = [
         {
             "role": "assistant",
-            "content": "Welcome. I am your air-gapped SOP compliance assistant. All responses are derived strictly from internal policy documentation with exact source citations.",
+            "content": "Hey, how may I help you today?",
             "citations": []
         }
     ]
 
+# -----------------------------------------------------------------------------
+# Global Styling - Unified Clean White & ChatGPT-like Interface
+# -----------------------------------------------------------------------------
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
+    /* Global Typography & Palette */
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    
+    .stApp {
+        background-color: #ffffff !important;
+        color: #18181b !important;
+    }
+
+    /* Completely hide deploy button, 3-dots settings menu (#MainMenu), toolbar, sidebar, and header chrome */
+    #MainMenu, 
+    .stDeployButton, 
+    [data-testid="stDeployButton"],
+    [data-testid="stToolbar"],
+    [data-testid="stHeaderActionElements"],
+    [data-testid="stStatusWidget"],
+    header[data-testid="stHeader"],
+    header,
+    footer,
+    [data-testid="stSidebar"], 
+    [data-testid="collapsedControl"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    /* Constrain main conversation container to ChatGPT ergonomic width */
+    .main .block-container {
+        max-width: 820px !important;
+        padding-top: 1.5rem !important;
+        padding-bottom: 7rem !important;
+        margin: 0 auto !important;
+    }
+
+    /* Top Navigation Bar */
+    .top-bar-user {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #18181b;
+        background: #f4f4f5;
+        padding: 5px 12px;
+        border-radius: 20px;
+        border: 1px solid #e4e4e7;
+    }
+    .top-bar-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #10b981;
+    }
+
+    /* Terminate Session Red Button */
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("Terminate Session")),
+    div[data-testid="stButton"] button:has(p:contains("Terminate Session")) {
+        background-color: #fff1f2 !important;
+        color: #e11d48 !important;
+        border: 1px solid #fecdd3 !important;
+        border-radius: 20px !important;
+        padding: 4px 14px !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        transition: all 0.15s ease !important;
+        box-shadow: none !important;
+        height: auto !important;
+        min-height: unset !important;
+    }
+    button[data-testid="stBaseButton-secondary"]:has(div:contains("Terminate Session")):hover,
+    div[data-testid="stButton"] button:has(p:contains("Terminate Session")):hover {
+        background-color: #ffe4e6 !important;
+        border-color: #fda4af !important;
+        color: #be123c !important;
+        transform: translateY(-1px);
+    }
+
+    /* Suggestion Grid Cards */
+    .suggestion-card-btn button {
+        background: #ffffff !important;
+        border: 1px solid #e4e4e7 !important;
+        border-radius: 12px !important;
+        color: #18181b !important;
+        text-align: left !important;
+        padding: 14px !important;
+        min-height: 88px !important;
+        height: 100% !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+        transition: all 0.18s ease !important;
+    }
+    .suggestion-card-btn button:hover {
+        background: #fafafa !important;
+        border-color: #d4d4d8 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+        transform: translateY(-2px);
+    }
+
+    /* Chat Messages - ChatGPT aesthetic */
+    div[data-testid="stChatMessage"] {
+        background-color: transparent !important;
+        border: none !important;
+        padding: 16px 0 !important;
+    }
+    div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatarIcon-user"]) {
+        background-color: #f4f4f5 !important;
+        border-radius: 16px !important;
+        padding: 14px 18px !important;
+        margin-bottom: 12px !important;
+    }
+
+    /* ChatGPT Bottom Fixed Input Bar */
+    div[data-testid="stChatInput"] {
+        max-width: 820px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+    }
+    div[data-testid="stChatInput"] textarea {
+        background-color: #ffffff !important;
+        border: 1px solid #d4d4d8 !important;
+        border-radius: 24px !important;
+        color: #18181b !important;
+        font-size: 0.92rem !important;
+        padding: 12px 20px !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+        transition: all 0.15s ease !important;
+    }
+    div[data-testid="stChatInput"] textarea:focus {
+        border-color: #18181b !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    /* Expander / Citations */
+    div[data-testid="stExpander"] {
+        border: 1px solid #e4e4e7 !important;
+        border-radius: 10px !important;
+        background: #fafafa !important;
+        box-shadow: none !important;
+        margin-top: 8px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+# -----------------------------------------------------------------------------
+# Login Screen Component
+# -----------------------------------------------------------------------------
 def render_login_portal() -> None:
     """
-    Function:
-        Renders the US-01 authentication gateway, preventing unauthorized users
-        from viewing or interacting with sensitive corporate SOP data.
-
-    Input:
-        None: Operates directly on Streamlit session state and form inputs.
-
-    Output:
-        None: Mutates st.session_state['authenticated'] upon successful validation.
+    Renders an artistic, minimalist plain white login gateway for DaSH Chatbot.
     """
-    _, col2, _ = st.columns([1, 1.5, 1])
-    with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("""
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="color: #38bdf8; margin-bottom: 4px;">🛡️ Enterprise SOP Portal</h1>
-            <p style="color: #94a3b8; font-size: 0.95rem;">Air-Gapped Knowledge System (US-01 Authentication)</p>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+        .main .block-container {
+            max-width: 380px !important;
+            padding-top: 12vh !important;
+            padding-bottom: 6vh !important;
+            margin: 0 auto !important;
+        }
 
-        with st.form("auth_form"):
-            st.markdown("##### 🔐 Workplace Credentials Required")
-            user_input = st.text_input("Username", placeholder="e.g., admin")
-            pass_input = st.text_input("Password", type="password", placeholder="••••••••")
-            submitted = st.form_submit_button("Verify & Access Knowledge Base", use_container_width=True)
+        .dash-brand-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            background: #18181b;
+            color: #ffffff;
+            border-radius: 14px;
+            margin-bottom: 16px;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
 
-            if submitted:
-                if user_input in CREDENTIALS and CREDENTIALS[user_input] == pass_input:
-                    st.session_state["authenticated"] = True
-                    st.session_state["username"] = user_input
-                    st.rerun()
-                else:
-                    st.error("Authentication failed. Invalid username or security credentials.")
+        .dash-title {
+            font-size: 1.85rem;
+            font-weight: 300;
+            letter-spacing: -0.035em;
+            color: #09090b;
+            margin-bottom: 4px;
+        }
 
-        st.markdown("""
-        <div style="background: rgba(30, 41, 59, 0.5); padding: 12px; border-radius: 8px; border: 1px solid #334155; margin-top: 16px; font-size: 0.8rem; color: #94a3b8;">
-            <strong>Authorized Demo Accounts:</strong><br>
-            Username: <code>admin</code> | Password: <code>sopsecure2026</code><br>
-            Username: <code>analyst</code> | Password: <code>enterprise2026</code>
-        </div>
-        """, unsafe_allow_html=True)
+        .dash-title span {
+            font-weight: 700;
+        }
+
+        .dash-subtitle {
+            font-size: 0.84rem;
+            color: #71717a;
+            margin-bottom: 28px;
+        }
+
+        /* Form Inputs */
+        div[data-testid="stTextInput"] {
+            margin-bottom: 6px;
+        }
+        div[data-testid="stTextInput"] label {
+            color: #52525b !important;
+            font-size: 0.78rem !important;
+            font-weight: 600 !important;
+            letter-spacing: 0.02em !important;
+        }
+        div[data-testid="stTextInput"] input {
+            background-color: #ffffff !important;
+            border: 1px solid #e4e4e7 !important;
+            border-radius: 10px !important;
+            color: #09090b !important;
+            font-size: 0.9rem !important;
+            padding: 10px 14px !important;
+            transition: all 0.15s ease-in-out !important;
+        }
+        div[data-testid="stTextInput"] input:focus {
+            border-color: #18181b !important;
+            box-shadow: 0 0 0 1px #18181b !important;
+        }
+
+        /* Form Submit Button */
+        div[data-testid="stFormSubmitButton"] button {
+            background-color: #18181b !important;
+            color: #ffffff !important;
+            border: 1px solid #18181b !important;
+            border-radius: 10px !important;
+            padding: 10px 16px !important;
+            font-weight: 600 !important;
+            font-size: 0.9rem !important;
+            margin-top: 12px !important;
+            width: 100% !important;
+            transition: all 0.2s ease !important;
+        }
+        div[data-testid="stFormSubmitButton"] button:hover {
+            background-color: #27272a !important;
+            border-color: #27272a !important;
+            transform: translateY(-1px);
+        }
+
+        /* Demo Credentials Box */
+        .dash-demo-box {
+            margin-top: 28px;
+            padding: 14px 16px;
+            background: #fafafa;
+            border: 1px solid #f4f4f5;
+            border-radius: 10px;
+            font-size: 0.76rem;
+            color: #71717a;
+            line-height: 1.6;
+            text-align: left;
+        }
+        .dash-demo-box code {
+            background: #ffffff;
+            color: #09090b;
+            border: 1px solid #e4e4e7;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-size: 0.74rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="text-align: center;">
+        <div class="dash-brand-icon">D</div>
+        <div class="dash-title"><span>DaSH</span> Chatbot</div>
+        <div class="dash-subtitle">Enter your credentials to continue</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    with st.form("auth_form", border=False):
+        user_input = st.text_input("Username", placeholder="e.g. admin")
+        pass_input = st.text_input("Password", type="password", placeholder="••••••••")
+        submitted = st.form_submit_button("Log in", use_container_width=True)
+
+        if submitted:
+            if user_input in CREDENTIALS and CREDENTIALS[user_input] == pass_input:
+                st.session_state["authenticated"] = True
+                st.session_state["username"] = user_input
+                st.rerun()
+            else:
+                st.error("Invalid username or password.")
+
+    st.markdown("""
+    <div class="dash-demo-box">
+        <div style="font-weight: 600; color: #18181b; margin-bottom: 4px; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.05em;">Demo Credentials</div>
+        <div>Admin: <code>admin</code> / <code>sopsecure2026</code></div>
+        <div>Analyst: <code>analyst</code> / <code>enterprise2026</code></div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 if not st.session_state["authenticated"]:
@@ -170,182 +360,81 @@ if not st.session_state["authenticated"]:
 
 
 # -----------------------------------------------------------------------------
-# Microservice Telemetry & Remote Control
+# Authenticated Screen: Top Navigation Bar
 # -----------------------------------------------------------------------------
-@st.cache_data(ttl=3)
-def query_python_health() -> tuple:
-    """
-    Function:
-        Polls the Python FastAPI health diagnostic endpoint. Uses a 3-second cache
-        to prevent redundant HTTP requests during frequent user clicks.
+col_left, col_right = st.columns([6, 2])
 
-    Input:
-        None: Targets configured PYTHON_API_URL.
+with col_left:
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="top-bar-user">
+            <span class="top-bar-dot"></span>
+            <span>{st.session_state['username']}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    Output:
-        tuple[bool, dict]: (is_healthy, health_metadata_dict).
-    """
-    try:
-        r = http_session.get(f"{PYTHON_API_URL}/api/health", timeout=2)
-        return r.status_code == 200, r.json()
-    except Exception:
-        return False, {}
-
-
-@st.cache_data(ttl=3)
-def query_java_status() -> tuple:
-    """
-    Function:
-        Polls the Java Spring Boot orchestrator status endpoint to verify directory
-        monitoring and ingestion telemetry. Cached for 3 seconds.
-
-    Input:
-        None: Targets configured JAVA_API_URL.
-
-    Output:
-        tuple[bool, dict]: (is_online, orchestrator_status_dict).
-    """
-    try:
-        r = http_session.get(f"{JAVA_API_URL}/api/scan/status", timeout=2)
-        return r.status_code == 200, r.json()
-    except Exception:
-        return False, {}
-
-
-@st.cache_data(ttl=5)
-def fetch_indexed_catalog() -> list:
-    """
-    Function:
-        Retrieves the complete catalog of indexed SOP documents and chunk statistics
-        from the Python AI Engine. Cached for 5 seconds.
-
-    Input:
-        None: Targets /api/documents.
-
-    Output:
-        list[dict]: Array of document metadata records.
-    """
-    try:
-        r = http_session.get(f"{PYTHON_API_URL}/api/documents", timeout=3)
-        if r.status_code == 200:
-            return r.json()
-        return []
-    except Exception:
-        return []
-
-
-def trigger_orchestrator_scan(force_all: bool = True) -> tuple:
-    """
-    Function:
-        Dispatches an on-demand instruction to the Java Spring Boot orchestrator,
-        triggering an immediate filesystem re-scan and sync with Python.
-
-    Input:
-        force_all (bool): If true, forces re-ingestion of all detected files.
-
-    Output:
-        tuple[bool, dict]: (success_flag, response_payload).
-    """
-    try:
-        r = http_session.post(
-            f"{JAVA_API_URL}/api/scan/trigger?forceAll={str(force_all).lower()}",
-            timeout=15
-        )
-        return r.status_code == 200, r.json()
-    except Exception as e:
-        return False, {"message": str(e)}
-
-
-# -----------------------------------------------------------------------------
-# Sidebar: System Architecture & Inventory
-# -----------------------------------------------------------------------------
-with st.sidebar:
-    st.markdown("### 🖥️ Polyglot Microservices")
-
-    py_online, py_data = query_python_health()
-    java_online, java_data = query_java_status()
-
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if py_online:
-            st.markdown('<div class="status-badge status-online">● Python AI (8000)</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="status-badge status-offline">● Python AI (Offline)</div>', unsafe_allow_html=True)
-    with col_b:
-        if java_online:
-            st.markdown('<div class="status-badge status-online">● Java Orchestrator</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="status-badge status-offline">● Java (Offline)</div>', unsafe_allow_html=True)
-
-    st.markdown("<hr style='margin: 12px 0; border-color: #334155;'>", unsafe_allow_html=True)
-
-    st.markdown("##### 🧠 Local AI Stack")
-    st.markdown("""
-    - **Inference**: `llama3.1:latest` (Ollama)
-    - **Vector Math**: `nomic-embed-text`
-    - **Storage**: ChromaDB (Persistent Cosine)
-    """)
-
-    st.markdown("<hr style='margin: 12px 0; border-color: #334155;'>", unsafe_allow_html=True)
-
-    st.markdown("##### 📁 Active SOP Inventory")
-    catalog = fetch_indexed_catalog()
-    if catalog:
-        for doc in catalog:
-            st.markdown(f"📄 **{doc.get('document_name')}**")
-            st.caption(f"Pages: {doc.get('total_pages')} | Vector Chunks: {doc.get('chunk_count')}")
-    else:
-        st.caption("No SOP documents currently indexed in vector store.")
-
-    st.markdown("<hr style='margin: 12px 0; border-color: #334155;'>", unsafe_allow_html=True)
-
-    st.markdown("##### ⚙️ Pipeline Control")
-    if st.button("🔄 Trigger Java Directory Ingestion", use_container_width=True):
-        with st.spinner("Orchestrator scanning local sops folder..."):
-            ok, res = trigger_orchestrator_scan(force_all=True)
-            if ok:
-                st.success(f"Dispatched: {res.get('message', 'Completed')}")
-                # Invalidate cached catalog to reflect updates immediately
-                fetch_indexed_catalog.clear()
-                st.rerun()
-            else:
-                st.error(f"Scan failed: {res.get('message')}")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.caption(f"Session User: **{st.session_state['username']}**")
-    if st.button("🚪 Terminate Session", use_container_width=True):
+with col_right:
+    if st.button("Terminate Session", key="btn_logout", use_container_width=False):
         st.session_state["authenticated"] = False
-        st.session_state["messages"] = []
+        st.session_state["messages"] = [
+            {
+                "role": "assistant",
+                "content": "Hey, how may I help you today?",
+                "citations": []
+            }
+        ]
         st.rerun()
 
-# -----------------------------------------------------------------------------
-# Main Chat Area
-# -----------------------------------------------------------------------------
-st.markdown("""
-<div class="hero-card">
-    <div class="hero-title">🛡️ Corporate SOP Knowledge Assistant</div>
-    <div class="hero-subtitle">
-        Air-gapped semantic search and verified question-answering.
-        Strictly grounded in internal standard operating procedures with transparent section citations.
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
-st.markdown("##### 💡 Suggested Compliance Queries:")
-chip1, chip2, chip3 = st.columns(3)
+
+# -----------------------------------------------------------------------------
+# 8 Minimalist Frequent Suggestions Grid (Jira, SSMS & T-SQL)
+# -----------------------------------------------------------------------------
+SUGGESTIONS = [
+    ("🎯 Jira JQL Queries", "Overdue SLAs & search filters", "What are standard JQL query examples for finding overdue or breached SLA tickets?"),
+    ("⏱️ JSM SLA Targets", "P1, P2, P3 response & fix goals", "What are the standard SLA response and resolution times for P1, P2, and P3 tickets?"),
+    ("🔄 Jira Workflows", "States, transitions & validators", "What are the standard workflow states and transition validators in enterprise Jira?"),
+    ("📊 SSMS Execution Plans", "Estimated vs Actual plan metrics", "What is the difference between Estimated and Actual Execution Plans in SSMS?"),
+    ("💾 SSMS Backup Recovery", "Full, Diff & Log disaster recovery", "What are the differences between Full, Differential, and Transaction Log backups in SSMS?"),
+    ("🔍 SSMS Extended Events", "XEvents vs legacy Profiler", "How do Extended Events replace SQL Server Profiler for performance monitoring in SSMS?"),
+    ("⚡ T-SQL Window Functions", "ROW_NUMBER, RANK & LEAD/LAG", "How do ROW_NUMBER, RANK, DENSE_RANK, and LEAD work in T-SQL queries?"),
+    ("🛡️ T-SQL Transactions", "ACID, Isolation & TRY...CATCH", "How is structured error handling implemented with BEGIN TRY...CATCH and ROLLBACK in T-SQL?")
+]
+
 selected_prompt = None
 
-with chip1:
-    if st.button("🔑 Password & Device Policy", use_container_width=True):
-        selected_prompt = "What are the password and encryption requirements for mobile devices?"
-with chip2:
-    if st.button("🧪 Chemical Spill Procedure", use_container_width=True):
-        selected_prompt = "What is the emergency protocol if a chemical spill occurs on the body?"
-with chip3:
-    if st.button("⚠️ Out-of-Scope Test", use_container_width=True):
-        selected_prompt = "What is the corporate reimbursement policy for commercial astronaut training?"
+# Show suggestions grid on new / fresh conversations
+if len(st.session_state["messages"]) <= 1:
+    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+    
+    # Row 1 (Cards 1 to 4)
+    cols_row1 = st.columns(4)
+    for idx in range(4):
+        title, desc, query = SUGGESTIONS[idx]
+        with cols_row1[idx]:
+            st.markdown('<div class="suggestion-card-btn">', unsafe_allow_html=True)
+            if st.button(f"**{title}**\n\n{desc}", key=f"sug_{idx}", use_container_width=True):
+                selected_prompt = query
+            st.markdown('</div>', unsafe_allow_html=True)
 
-# Render conversation history
+    # Row 2 (Cards 5 to 8)
+    cols_row2 = st.columns(4)
+    for idx in range(4, 8):
+        title, desc, query = SUGGESTIONS[idx]
+        with cols_row2[idx - 4]:
+            st.markdown('<div class="suggestion-card-btn">', unsafe_allow_html=True)
+            if st.button(f"**{title}**\n\n{desc}", key=f"sug_{idx}", use_container_width=True):
+                selected_prompt = query
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+
+
+# -----------------------------------------------------------------------------
+# Chat Conversation History
+# -----------------------------------------------------------------------------
 for message in st.session_state["messages"]:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -354,13 +443,17 @@ for message in st.session_state["messages"]:
         if citations:
             with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
                 for idx, c in enumerate(citations):
-                    st.markdown(f"""
-                    **Citation {idx+1}: {c.get('document')}**  
-                    *Page:* `{c.get('page')}` | *Section:* `{c.get('section')}` | *Cosine Distance:* `{c.get('distance', 0):.4f}`  
-                    > {c.get('snippet')}
-                    """)
+                    doc = c.get('document', 'Document')
+                    section = f" -> {c.get('section')}" if c.get('section') else ""
+                    page = f" -> Page {c.get('page')}" if c.get('page') else ""
+                    st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
+                    st.markdown(f"> *\"{c.get('snippet')}\"*")
 
-user_query = st.chat_input("Ask a question about internal Standard Operating Procedures...") or selected_prompt
+
+# -----------------------------------------------------------------------------
+# ChatGPT-style Input Bar & Response Handler
+# -----------------------------------------------------------------------------
+user_query = st.chat_input("Message DaSH Chatbot...") or selected_prompt
 
 if user_query:
     st.session_state["messages"].append({"role": "user", "content": user_query})
@@ -368,7 +461,7 @@ if user_query:
         st.markdown(user_query)
 
     with st.chat_message("assistant"):
-        with st.spinner("Performing semantic vector retrieval & local LLM reasoning..."):
+        with st.spinner("Thinking..."):
             try:
                 response = http_session.post(
                     f"{PYTHON_API_URL}/api/chat",
@@ -386,11 +479,11 @@ if user_query:
                     if citations:
                         with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
                             for idx, c in enumerate(citations):
-                                st.markdown(f"""
-                                **Citation {idx+1}: {c.get('document')}**  
-                                *Page:* `{c.get('page')}` | *Section:* `{c.get('section')}` | *Cosine Distance:* `{c.get('distance', 0):.4f}`  
-                                > {c.get('snippet')}
-                                """)
+                                doc = c.get('document', 'Document')
+                                section = f" -> {c.get('section')}" if c.get('section') else ""
+                                page = f" -> Page {c.get('page')}" if c.get('page') else ""
+                                st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
+                                st.markdown(f"> *\"{c.get('snippet')}\"*")
 
                     st.session_state["messages"].append({
                         "role": "assistant",
