@@ -1,0 +1,90 @@
+version: '3.8'
+
+# ==============================================================================
+# Enterprise Local RAG Chatbot - Container Orchestration Stack
+# Fully Air-Gapped, Zero External Network Calls
+# ==============================================================================
+
+services:
+  # 1. Local Air-gapped Ollama LLM Inference Engine
+  ollama:
+    image: ollama/ollama:latest
+    container_name: dash-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    networks:
+      - dash-network
+
+  # 2. Python FastAPI Vector & RAG AI Engine
+  ai-engine:
+    build:
+      context: ./python-ai-engine
+      dockerfile: Dockerfile
+    container_name: dash-ai-engine
+    restart: unless-stopped
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - EMBEDDING_MODEL=nomic-embed-text
+      - CHAT_MODEL=llama3.1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/sops:/app/data/sops:ro
+      - chroma_data:/app/chroma_db
+    depends_on:
+      - ollama
+    networks:
+      - dash-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  # 3. Java Spring Boot SOP Ingestion & Orchestration Microservice
+  java-orchestrator:
+    build:
+      context: ./java-orchestrator
+      dockerfile: Dockerfile
+    container_name: dash-java-orchestrator
+    restart: unless-stopped
+    environment:
+      - PYTHON_ENGINE_URL=http://ai-engine:8000
+      - SOPS_DIRECTORY_PATH=/app/data/sops
+      - SOPS_SCAN_INTERVAL_MS=60000
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/sops:/app/data/sops:ro
+    depends_on:
+      - ai-engine
+    networks:
+      - dash-network
+
+  # 4. Streamlit Minimalist End-User Chat Interface
+  chat-ui:
+    build:
+      context: ./python-ai-engine
+      dockerfile: Dockerfile
+    container_name: dash-chat-ui
+    restart: unless-stopped
+    environment:
+      - PYTHON_API_URL=http://ai-engine:8000
+      - JAVA_API_URL=http://java-orchestrator:8080
+    ports:
+      - "8501:8501"
+    depends_on:
+      - ai-engine
+      - java-orchestrator
+    networks:
+      - dash-network
+    command: streamlit run app_ui.py --server.port 8501 --server.headless true --server.address 0.0.0.0
+
+networks:
+  dash-network:
+    driver: bridge
+
+volumes:
+  ollama_storage:
+    name: dash_ollama_storage
+  chroma_data:
+    name: dash_chroma_data

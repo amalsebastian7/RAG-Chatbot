@@ -1,0 +1,12 @@
+.git/
+.gitignore
+.idea/
+.logs/
+*.zip
+*.tar.gz
+*.DS_Store
+python-ai-engine/venv/
+python-ai-engine/.venv/
+java-orchestrator/src/
+java-orchestrator/.mvn/
+evidence/

@@ -1,0 +1,152 @@
+================================================================================
+           ENTERPRISE LOCAL RAG CHATBOT (DaSH) - SYSTEM INVENTORY & ARCHITECTURE
+================================================================================
+Project Name:        Enterprise Air-Gapped Retrieval-Augmented Generation (RAG) Chatbot
+Version:             2.0.0 (Production Candidate)
+Deployment Mode:     100% Air-Gapped / Fully Local Containerized Stack
+Author / Engineer:   Amal Sebastian
+Security Profile:    Zero Outbound Data Transmission / On-Premise Execution Only
+================================================================================
+
+
+1.0 EXECUTIVE OVERVIEW & SECURITY MANDATE
+--------------------------------------------------------------------------------
+This system is an enterprise-grade AI knowledge assistant engineered strictly for 
+air-gapped and internal compliance environments. It indexes, searches, and reasons 
+over Standard Operating Procedures (SOPs) and technical documentation without 
+making external internet calls, cloud API requests, or telemetry transmissions.
+
+Key Architectural Guarantees:
+  * 100% On-Premise Execution: All embeddings, vector indexing, and LLM inferences 
+    occur within the local host machine.
+  * Deterministic Grounding: The model generates answers solely using verified 
+    document excerpts, providing inline clickable citations (Document, Section, Page).
+  * Hallucination Guardrail: If queried information is not present in indexed 
+    documentation, the system strictly responds with "I don't know based on the 
+    provided documents."
+  * Zero Residual Footprint: Running inside Docker containers ensures that host OS 
+    runtimes, environment variables, and registry settings remain completely untouched.
+
+
+2.0 COMPONENT INVENTORY & SUBCATEGORIES
+--------------------------------------------------------------------------------
+
+[MAIN CATEGORY 1] PRESENTATION & INTERACTION LAYER (Streamlit UI)
+  * Location: /python-ai-engine/app_ui.py
+  * Technology: Python 3.10+, Streamlit, Vanilla CSS Design System
+  * Responsibilities & Features:
+    - 1.1 Compact Login Modal (300px standard width, credentials validation)
+    - 1.2 Two-Sided Chat Interface (User right-aligned bubbles, AI left-aligned)
+    - 1.3 Real-Time Token Streaming (Word-by-word streaming generation)
+    - 1.4 Interactive Citation Accordions (Collapsible native expanders with excerpts)
+    - 1.5 Telemetry & Latency Counters (Exact response time in seconds)
+    - 1.6 Session Control (Top-right corner session termination button)
+
+[MAIN CATEGORY 2] INGESTION & ORCHESTRATION LAYER (Java Spring Boot)
+  * Location: /java-orchestrator
+  * Technology: Java 21, Spring Boot 4.1.0, Maven, Eclipse Temurin JRE
+  * Responsibilities & Features:
+    - 2.1 File System Watcher (Automated periodic polling of SOP document directory)
+    - 2.2 Ingestion Pipeline Coordinator (Checksum tracking, metadata enrichment)
+    - 2.3 Health Telemetry Bridge (Aggregates system status across microservices)
+    - 2.4 Pre-compiled Executable: /java-orchestrator/target/java-orchestrator-0.0.1-SNAPSHOT.jar
+
+[MAIN CATEGORY 3] VECTOR RETRIEVAL & RAG AI ENGINE (Python FastAPI)
+  * Location: /python-ai-engine
+  * Technology: Python FastAPI, ChromaDB, LangChain Splitters, PyPDF
+  * Responsibilities & Features:
+    - 3.1 PDF Parser & Chunking Engine (Recursive character splitting with overlap)
+    - 3.2 ChromaDB Vector Database (Persistent HNSW cosine similarity space)
+    - 3.3 Strict Cosine Relevance Filter (Discards low-confidence semantic chunks)
+    - 3.4 In-Memory Query Cache (Sub-10ms response for repeated queries with auto-invalidation)
+    - 3.5 High-Throughput REST & Streaming Endpoints:
+        * POST /api/chat/stream  -> Real-time ndjson token streaming
+        * POST /api/chat         -> Synchronous REST response
+        * POST /api/documents/ingest -> Async document indexing
+        * GET  /api/documents    -> Catalog of indexed documentation
+        * GET  /api/health       -> Multi-point health diagnostics
+
+[MAIN CATEGORY 4] LOCAL LLM & EMBEDDING INFERENCE ENGINE (Ollama)
+  * Technology: Ollama Local Inference Daemon
+  * Responsibilities & Features:
+    - 4.1 Chat Reasoning Model: llama3.1 (8B quantized instruction-tuned model)
+    - 4.2 Semantic Vector Model: nomic-embed-text (High-efficiency 768-dim embeddings)
+    - 4.3 Connection Pooling: Pre-warmed persistent keep-alive sessions
+
+[MAIN CATEGORY 5] ENTERPRISE SOP KNOWLEDGE BASE
+  * Location: /data/sops
+  * Sample Pre-Loaded Enterprise Documentation:
+    - 5.1 Jira-Enterprise-Documentation.pdf (JQL, Workflows, Agile Boards, Permissions)
+    - 5.2 Microsoft-SSMS-Administration-Guide.pdf (SQL Server Management Studio Standards)
+    - 5.3 Transact-SQL-Language-Reference.pdf (T-SQL Syntax, CTEs, Index Optimization)
+
+[MAIN CATEGORY 6] CONTAINERIZATION & DEPLOYMENT STACK (Docker)
+  * Files:
+    - 6.1 docker-compose.yml              -> Master container orchestration
+    - 6.2 python-ai-engine/Dockerfile     -> Multi-stage AI engine & UI image
+    - 6.3 java-orchestrator/Dockerfile    -> Lightweight Temurin JRE container image
+    - 6.4 .dockerignore                   -> Build context optimization
+
+
+3.0 MICROSERVICE NETWORK MAP & PORT ASSIGNMENTS
+--------------------------------------------------------------------------------
++-------------------+---------+-------------------+----------------------------+
+| Microservice      | Port    | Protocol / Type   | Purpose                    |
++-------------------+---------+-------------------+----------------------------+
+| dash-chat-ui      | 8501    | HTTP (Browser)    | User Chat Interface        |
+| dash-java-orch    | 8080    | HTTP (REST)       | Ingestion Orchestration    |
+| dash-ai-engine    | 8000    | HTTP / Streaming  | Vector Search & LLM Bridge |
+| dash-ollama       | 11434   | HTTP (Internal)   | Local Model Inference      |
++-------------------+---------+-------------------+----------------------------+
+
+
+4.0 DEMO CREDENTIALS & ACCESS CONTROL
+--------------------------------------------------------------------------------
+The system features built-in authentication and role segregation:
+  * Administrator Account:
+      - Username: admin
+      - Password: sopsecure2026
+  * Business Analyst Account:
+      - Username: analyst
+      - Password: enterprise2026
+
+
+5.0 STEP-BY-STEP DEPLOYMENT GUIDE ON TEST PC
+--------------------------------------------------------------------------------
+
+[PREREQUISITES]
+  - Docker & Docker Compose (or Docker Desktop / Podman) installed on the test PC.
+
+[STEP 1: UNPACK ARCHIVE]
+  Unzip the bundle into any test directory (e.g. C:\RAG-Chatbot or ~/RAG-Chatbot).
+
+[STEP 2: START ALL SERVICES WITH ONE COMMAND]
+  Open terminal / PowerShell in the directory and run:
+      docker compose up -d
+
+[STEP 3: ACCESS APPLICATION]
+  Open your web browser and navigate to:
+      http://localhost:8501
+
+[STEP 4: VERIFY HEALTH PROBE]
+  To verify all 4 services are healthy:
+      curl http://localhost:8000/api/health
+      curl http://localhost:8080/api/scan/status
+
+[STEP 5: ADD NEW SOPS]
+  To ingest additional company SOPs, simply copy PDF files into the `data/sops/` 
+  folder. The Java Orchestrator will automatically scan, chunk, embed, and index them.
+
+[STEP 6: CLEAN TEARDOWN (Zero Leftover Footprint)]
+  When testing is finished, completely remove all containers, volumes, and networks:
+      docker compose down -v
+
+
+6.0 SECURITY & AUDIT COMPLIANCE CHECKLIST FOR IT
+--------------------------------------------------------------------------------
+[✓] Zero Cloud Egress: No outbound HTTP/HTTPS calls made to external endpoints.
+[✓] Container Isolation: Runs entirely in a private Docker bridge network (`dash-network`).
+[✓] Read-Only Volume Mounting: SOP source directory is mounted read-only (`:ro`).
+[✓] Deterministic Output: Temperature set to 0.05 for maximum adherence to ground truth.
+[✓] Non-Privileged Execution: Containers do not require host root permissions.
+================================================================================
