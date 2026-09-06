@@ -1,4 +1,6 @@
 import os
+import re
+import json
 import time
 import requests
 from requests.adapters import HTTPAdapter
@@ -649,28 +651,57 @@ if user_query:
 
     try:
         response = http_session.post(
-            f"{PYTHON_API_URL}/api/chat",
+            f"{PYTHON_API_URL}/api/chat/stream",
             json={"query": user_query, "top_k": 4},
+            stream=True,
             timeout=90
         )
-        elapsed_sec = time.time() - t0
 
         if response.status_code == 200:
-            data = response.json()
-            answer = data.get("answer", "")
-            citations = data.get("citations", [])
+            thinking_cleared = False
+            citations = []
+            full_text = ""
+            tag_placeholder = st.empty()
+            text_placeholder = st.empty()
 
-            # Clear jumping dots and render answer
-            thinking_placeholder.empty()
+            for raw_line in response.iter_lines():
+                if not raw_line:
+                    continue
+                line_str = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
+                try:
+                    event = json.loads(line_str)
+                except Exception:
+                    continue
 
-            st.markdown("""
-            <div class="ai-response-tag">
-                <span class="ai-chevron">❯❯</span>
-                <span class="ai-tag-name">DaSH</span>
-            </div>
-            """, unsafe_allow_html=True)
+                if not thinking_cleared:
+                    thinking_placeholder.empty()
+                    tag_placeholder.markdown("""
+                    <div class="ai-response-tag">
+                        <span class="ai-chevron">❯❯</span>
+                        <span class="ai-tag-name">DaSH</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    thinking_cleared = True
 
-            st.markdown(answer, unsafe_allow_html=True)
+                ev_type = event.get("type")
+                if ev_type == "citations":
+                    citations = event.get("citations", [])
+                elif ev_type == "token":
+                    chunk = event.get("content", "")
+                    full_text += chunk
+                    display_text = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', full_text)
+                    text_placeholder.markdown(display_text, unsafe_allow_html=True)
+                elif ev_type == "done":
+                    final_ans = event.get("full_answer", full_text)
+                    citations = event.get("citations", citations)
+                    display_text = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', final_ans)
+                    text_placeholder.markdown(display_text, unsafe_allow_html=True)
+                    full_text = final_ans
+
+            if not thinking_cleared:
+                thinking_placeholder.empty()
+
+            elapsed_sec = time.time() - t0
 
             if citations:
                 for idx, c in enumerate(citations):
@@ -687,7 +718,7 @@ if user_query:
 
             st.session_state["messages"].append({
                 "role": "assistant",
-                "content": answer,
+                "content": re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', full_text),
                 "citations": citations,
                 "response_time": elapsed_sec
             })

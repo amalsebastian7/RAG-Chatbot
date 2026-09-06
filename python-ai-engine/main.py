@@ -1,9 +1,11 @@
 import os
+import json
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from rag_service import RAGService
 
@@ -208,6 +210,36 @@ async def chat(request: ChatRequest) -> ChatResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"RAG query execution error: {str(e)}"
         )
+
+
+@app.post("/api/chat/stream", tags=["Inference"])
+async def chat_stream(request: ChatRequest):
+    """
+    Function:
+        Streams token generation events in real-time using ndjson format.
+        Yields citation headers, real-time token chunks, and final completion payload.
+
+    Input:
+        request (ChatRequest): Query string and top_k parameters.
+
+    Output:
+        StreamingResponse: application/x-ndjson stream of JSON objects.
+    """
+    cleaned_query = request.query.strip()
+    if not cleaned_query:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query string cannot be blank."
+        )
+
+    def event_stream():
+        for event in rag_service.query_stream(user_query=cleaned_query, top_k=request.top_k or 4):
+            yield json.dumps(event) + "\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="application/x-ndjson"
+    )
 
 
 @app.get("/api/documents", tags=["Ingestion"])

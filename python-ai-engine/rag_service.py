@@ -1,8 +1,9 @@
 import os
 import re
+import time
 import hashlib
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Generator
 import pypdf
 import chromadb
 import ollama
@@ -25,17 +26,16 @@ class RAGService:
     
     Orchestrates the end-to-end vector pipeline for air-gapped SOP documents:
     streaming PDF ingestion, hierarchical section extraction, persistent 
-    ChromaDB indexing with cosine distance filtering, and context-grounded 
-    inference via local Ollama LLMs.
+    ChromaDB indexing with cosine distance filtering, in-memory TTL caching,
+    and context-grounded inference (synchronous & streaming) via local Ollama LLMs.
     """
 
     def __init__(self, persist_dir: str = CHROMA_PERSIST_DIR):
         """
         Function:
             Initializes persistent ChromaDB vector storage, connects to the local
-            Ollama inference engine, and configures the recursive text splitter.
-            Ensures that index structures and cosine distance metrics are properly
-            initialized upon service bootstrap.
+            Ollama inference engine with persistent connection pooling and timeout,
+            initializes the in-memory query cache, and configures the recursive text splitter.
 
         Input:
             persist_dir (str): File system path pointing to the on-disk ChromaDB directory.
@@ -45,7 +45,7 @@ class RAGService:
             None: Instantiates the RAGService runtime state and database connections.
         """
         self.persist_dir = persist_dir
-        self.ollama_client = ollama.Client(host=OLLAMA_HOST)
+        self.ollama_client = ollama.Client(host=OLLAMA_HOST, timeout=120.0)
         self.chroma_client = chromadb.PersistentClient(path=self.persist_dir)
         self.collection = self.chroma_client.get_or_create_collection(
             name=COLLECTION_NAME,
@@ -56,6 +56,43 @@ class RAGService:
             chunk_overlap=200,
             separators=["\n\n", "\n", ". ", "; ", " ", ""]
         )
+        # In-memory query cache with TTL invalidation
+        self.query_cache: Dict[str, Dict[str, Any]] = {}
+        self.cache_ttl_seconds: int = 3600  # 1 hour TTL
+
+    def _get_cache_key(self, query: str, top_k: int) -> str:
+        """Generates a deterministic SHA-256 hash key for a normalized query and top_k parameter."""
+        normalized = query.strip().lower()
+        return hashlib.sha256(f"{normalized}_{top_k}".encode("utf-8")).hexdigest()
+
+    def _get_from_cache(self, key: str) -> Optional[Dict[str, Any]]:
+        """Retrieves an entry from query cache if present and unexpired."""
+        if key in self.query_cache:
+            entry = self.query_cache[key]
+            if time.time() - entry["timestamp"] < self.cache_ttl_seconds:
+                logger.info(f"Cache HIT for query hash {key[:8]}")
+                return entry["data"]
+            else:
+                logger.info(f"Cache EXPIRED for query hash {key[:8]}")
+                self.query_cache.pop(key, None)
+        return None
+
+    def _save_to_cache(self, key: str, data: Dict[str, Any]) -> None:
+        """Saves a query result to cache with bounded LRU-style eviction."""
+        if len(self.query_cache) > 500:
+            oldest_keys = sorted(self.query_cache.keys(), key=lambda k: self.query_cache[k]["timestamp"])[:100]
+            for k in oldest_keys:
+                self.query_cache.pop(k, None)
+        self.query_cache[key] = {
+            "data": data,
+            "timestamp": time.time()
+        }
+
+    def clear_cache(self) -> None:
+        """Flushes all stored query cache entries upon document ingestion or updates."""
+        count = len(self.query_cache)
+        self.query_cache.clear()
+        logger.info(f"Cleared {count} entries from in-memory query cache.")
 
     def get_embedding(self, text: str) -> List[float]:
         """
@@ -108,7 +145,6 @@ class RAGService:
         Output:
             str: Cleaned text retaining semantic prose and section headings.
         """
-        # Strip common SOP header blocks like "Revision Date Approved by: Responsibility Page"
         cleaned = re.sub(
             r"Revision Date Approved by:.*?(?:\n|$)",
             "",
@@ -121,7 +157,6 @@ class RAGService:
             cleaned,
             flags=re.IGNORECASE
         )
-        # Condense excessive blank lines to save token budget
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
         return cleaned.strip()
 
@@ -144,7 +179,6 @@ class RAGService:
         lines = [line.strip() for line in text.split("\n") if line.strip()]
         for line in lines[:5]:
             if re.match(r"^(\d+(\.\d+)*\s+[A-Z0-9\s\-/]{3,}|SECTION\s+[A-Z0-9]+|APPENDIX\s+[A-Z0-9\:\s]+|[A-Z\s]{4,})", line):
-                # Filter out pure noise lines
                 if len(line) > 3 and not line.lower().startswith("page"):
                     return line[:90]
         return fallback
@@ -155,7 +189,8 @@ class RAGService:
             Performs high-throughput, memory-efficient PDF parsing, semantic chunking,
             vectorization, and database persistence. Uses streaming page extraction to 
             prevent memory spikes during large document processing. Atomically purges 
-            outdated embeddings for the target file before re-indexing.
+            outdated embeddings for the target file before re-indexing and invalidates
+            the in-memory query cache.
 
         Input:
             file_path (str): Absolute file system path to the PDF document.
@@ -163,12 +198,8 @@ class RAGService:
                                        from the base name of file_path.
 
         Output:
-            Dict[str, Any]: Structured operational summary containing:
-                - 'status': Ingestion outcome ('success').
-                - 'document_name': File identifier.
-                - 'total_pages': Number of pages parsed.
-                - 'chunks_indexed': Total count of vector embeddings stored in ChromaDB.
-                Raises FileNotFoundError if file_path is invalid.
+            Dict[str, Any]: Structured operational summary containing status, document name,
+                            total pages, and chunks indexed.
         """
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Target SOP file not found on filesystem: {file_path}")
@@ -193,7 +224,6 @@ class RAGService:
         active_section = "General Overview"
         chunk_counter = 0
 
-        # Process page-by-page to maintain minimal memory footprint
         for page_idx in range(total_pages):
             page_num = page_idx + 1
             raw_text = reader.pages[page_idx].extract_text() or ""
@@ -202,7 +232,6 @@ class RAGService:
             if not cleaned_text:
                 continue
 
-            # Update section context if a new header is encountered
             active_section = self.extract_section_header(cleaned_text, fallback=active_section)
             page_chunks = self.text_splitter.split_text(cleaned_text)
 
@@ -226,7 +255,6 @@ class RAGService:
                 })
                 chunk_counter += 1
 
-        # Commit batches of 64 to ChromaDB to optimize I/O and prevent buffer overflow
         batch_size = 64
         for i in range(0, len(ids), batch_size):
             self.collection.add(
@@ -236,6 +264,9 @@ class RAGService:
                 embeddings=embeddings[i:i+batch_size]
             )
 
+        # Invalidate in-memory query cache so subsequent inquiries reflect newly indexed knowledge
+        self.clear_cache()
+
         logger.info(f"Ingestion complete: {doc_name} indexed {chunk_counter} chunks across {total_pages} pages.")
         return {
             "status": "success",
@@ -244,39 +275,19 @@ class RAGService:
             "chunks_indexed": chunk_counter
         }
 
-    def query(self, user_query: str, top_k: int = 4) -> Dict[str, Any]:
+    def _retrieve_context_and_citations(self, user_query: str, top_k: int = 4) -> Tuple[List[str], List[Dict[str, Any]]]:
         """
-        Function:
-            Executes vector similarity search, applies strict cosine relevance filtering,
-            formats a verifiable context prompt, and performs deterministic inference
-            via Ollama llama3.1. Enforces strict enterprise grounding and hallucination
-            guardrails (mandating 'I don't know' for unverified questions).
-
-        Input:
-            user_query (str): The operational or compliance question submitted by the user.
-            top_k (int): Maximum number of proximate chunks to retrieve. Defaults to 4.
-
-        Output:
-            Dict[str, Any]: Structured dictionary containing:
-                - 'answer' (str): The LLM response citing document names and page sections.
-                - 'citations' (List[Dict]): Detailed citation metadata for UI rendering.
-                - 'context_count' (int): Number of qualifying context chunks utilized.
+        Internal helper to query ChromaDB and apply cosine distance thresholding.
+        Returns a tuple of (context_blocks, citations).
         """
         total_chunks = self.collection.count()
         if total_chunks == 0:
-            return {
-                "answer": "No Standard Operating Procedures (SOPs) have been indexed yet. Please trigger an ingestion scan first.",
-                "citations": [],
-                "context_count": 0
-            }
+            return [], []
 
-        # 1. Transform query into semantic vector space
         query_vector = self.get_embedding(user_query)
-
-        # 2. Retrieve nearest neighbor candidates
         results = self.collection.query(
             query_embeddings=[query_vector],
-            n_results=min(top_k * 2, total_chunks)  # Over-fetch slightly to allow threshold filtering
+            n_results=min(top_k * 2, total_chunks)
         )
 
         retrieved_docs = results["documents"][0] if results.get("documents") else []
@@ -286,10 +297,8 @@ class RAGService:
         citations: List[Dict[str, Any]] = []
         context_blocks: List[str] = []
 
-        # 3. Apply Cosine Distance Threshold Filtering
         for text, meta, dist in zip(retrieved_docs, retrieved_metas, retrieved_dists):
             dist_val = float(dist)
-            # Skip chunks that are semantically irrelevant
             if dist_val > COSINE_SIMILARITY_THRESHOLD and len(context_blocks) >= top_k:
                 continue
 
@@ -318,17 +327,10 @@ class RAGService:
             if len(context_blocks) >= top_k:
                 break
 
-        # If no chunks met the threshold criteria, trigger guardrail immediately
-        if not context_blocks:
-            return {
-                "answer": "I don't know based on the provided documents.",
-                "citations": [],
-                "context_count": 0
-            }
+        return context_blocks, citations
 
-        formatted_context = "\n".join(context_blocks)
-
-        # 4. Construct Strict Grounding & Beautiful Markdown Formatting Instructions
+    def _build_prompt_payload(self, user_query: str, context_blocks: List[str]) -> Tuple[str, str]:
+        """Constructs system instruction and grounded user prompt."""
         system_instruction = (
             "You are an expert enterprise AI assistant for technical documentation and SOPs.\n"
             "Your mission is to provide exceptionally clear, beautifully structured answers strictly based on the provided context.\n\n"
@@ -348,6 +350,7 @@ class RAGService:
             "     \"I don't know based on the provided documents.\""
         )
 
+        formatted_context = "\n".join(context_blocks)
         user_prompt = (
             f"REFERENCE CONTEXT:\n"
             f"{formatted_context}\n"
@@ -355,6 +358,39 @@ class RAGService:
             f"{user_query}\n\n"
             f"Provide a structured, beautifully formatted answer with code blocks and inline [1], [2] citations:"
         )
+        return system_instruction, user_prompt
+
+    def query(self, user_query: str, top_k: int = 4) -> Dict[str, Any]:
+        """
+        Function:
+            Synchronously processes inquiries, checking cache first, and delegating to ChromaDB
+            and Ollama inference if cache miss occurs.
+        """
+        cache_key = self._get_cache_key(user_query, top_k)
+        cached = self._get_from_cache(cache_key)
+        if cached is not None:
+            return cached
+
+        total_chunks = self.collection.count()
+        if total_chunks == 0:
+            res = {
+                "answer": "No Standard Operating Procedures (SOPs) have been indexed yet. Please trigger an ingestion scan first.",
+                "citations": [],
+                "context_count": 0
+            }
+            return res
+
+        context_blocks, citations = self._retrieve_context_and_citations(user_query, top_k)
+        if not context_blocks:
+            res = {
+                "answer": "I don't know based on the provided documents.",
+                "citations": [],
+                "context_count": 0
+            }
+            self._save_to_cache(cache_key, res)
+            return res
+
+        system_instruction, user_prompt = self._build_prompt_payload(user_query, context_blocks)
 
         try:
             inference_response = self.ollama_client.chat(
@@ -364,25 +400,114 @@ class RAGService:
                     {"role": "user", "content": user_prompt}
                 ],
                 options={
-                    "temperature": 0.05,  # Minimized temperature for maximum determinism
+                    "temperature": 0.05,
                     "top_p": 0.9,
                     "num_ctx": 4096
                 }
             )
             raw_answer = inference_response["message"]["content"]
-            # Strip any redundant LLM-generated trailing References text
             clean_answer = re.split(r'\n(?:\*\*|##|\b)?References(?:\:|\*\*|\b)?', raw_answer, flags=re.IGNORECASE)[0].strip()
-            # Convert [1], [2] to subtle superscript markup for low-font unobtrusive reading
             formatted_answer = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', clean_answer)
         except Exception as e:
             logger.error(f"Inference failure connecting to local Ollama daemon: {e}")
             formatted_answer = f"Inference engine failure: {str(e)}"
 
-        return {
+        result = {
             "answer": formatted_answer,
             "citations": citations,
             "context_count": len(context_blocks)
         }
+        self._save_to_cache(cache_key, result)
+        return result
+
+    def query_stream(self, user_query: str, top_k: int = 4) -> Generator[Dict[str, Any], None, None]:
+        """
+        Function:
+            Streams tokens in real time from Ollama to the client.
+            Yields initial citation metadata, streaming token chunks, and final completion envelope.
+            Serves from memory cache when available.
+        """
+        cache_key = self._get_cache_key(user_query, top_k)
+        cached = self._get_from_cache(cache_key)
+        if cached is not None:
+            yield {"type": "citations", "citations": cached.get("citations", []), "context_count": cached.get("context_count", 0)}
+            yield {"type": "token", "content": cached.get("answer", "")}
+            yield {"type": "done", "full_answer": cached.get("answer", ""), "citations": cached.get("citations", [])}
+            return
+
+        total_chunks = self.collection.count()
+        if total_chunks == 0:
+            msg = "No Standard Operating Procedures (SOPs) have been indexed yet. Please trigger an ingestion scan first."
+            yield {"type": "citations", "citations": [], "context_count": 0}
+            yield {"type": "token", "content": msg}
+            yield {"type": "done", "full_answer": msg, "citations": []}
+            return
+
+        context_blocks, citations = self._retrieve_context_and_citations(user_query, top_k)
+        if not context_blocks:
+            msg = "I don't know based on the provided documents."
+            yield {"type": "citations", "citations": [], "context_count": 0}
+            yield {"type": "token", "content": msg}
+            yield {"type": "done", "full_answer": msg, "citations": []}
+            self._save_to_cache(cache_key, {"answer": msg, "citations": [], "context_count": 0})
+            return
+
+        # 1. Yield citation metadata payload first so UI can prepare accordion
+        yield {
+            "type": "citations",
+            "citations": citations,
+            "context_count": len(context_blocks)
+        }
+
+        system_instruction, user_prompt = self._build_prompt_payload(user_query, context_blocks)
+
+        accumulated_chunks: List[str] = []
+        try:
+            stream_gen = self.ollama_client.chat(
+                model=CHAT_MODEL,
+                messages=[
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": user_prompt}
+                ],
+                stream=True,
+                options={
+                    "temperature": 0.05,
+                    "top_p": 0.9,
+                    "num_ctx": 4096
+                }
+            )
+
+            for chunk in stream_gen:
+                content = chunk.get("message", {}).get("content", "")
+                if content:
+                    accumulated_chunks.append(content)
+                    yield {
+                        "type": "token",
+                        "content": content
+                    }
+
+            raw_answer = "".join(accumulated_chunks)
+            clean_answer = re.split(r'\n(?:\*\*|##|\b)?References(?:\:|\*\*|\b)?', raw_answer, flags=re.IGNORECASE)[0].strip()
+            formatted_answer = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', clean_answer)
+
+            # Store finished answer in query cache
+            self._save_to_cache(cache_key, {
+                "answer": formatted_answer,
+                "citations": citations,
+                "context_count": len(context_blocks)
+            })
+
+            yield {
+                "type": "done",
+                "full_answer": formatted_answer,
+                "citations": citations
+            }
+
+        except Exception as e:
+            logger.error(f"Streaming error connecting to local Ollama daemon: {e}")
+            err_msg = f"Inference engine failure: {str(e)}"
+            yield {"type": "token", "content": f"\n\n{err_msg}"}
+            yield {"type": "done", "full_answer": err_msg, "citations": citations}
 
     def list_indexed_documents(self) -> List[Dict[str, Any]]:
         """
@@ -413,3 +538,4 @@ class RAGService:
             summary_map[name]["chunk_count"] += 1
 
         return list(summary_map.values())
+
