@@ -328,17 +328,24 @@ class RAGService:
 
         formatted_context = "\n".join(context_blocks)
 
-        # 4. Construct Strict Grounding System Instructions
+        # 4. Construct Strict Grounding & Beautiful Markdown Formatting Instructions
         system_instruction = (
-            "You are an enterprise AI assistant for technical documentation and SOPs.\n"
-            "Your mission is to answer user questions accurately and strictly based on the provided context.\n\n"
-            "MANDATORY CITATION & ANSWER RULES:\n"
-            "1. Answer the question directly and clearly using only the provided excerpts.\n"
-            "2. Cite your sources using bracketed numbers like [1], [2] directly inline in your sentences (e.g. 'P1 issues require response within 15 minutes [1].').\n"
-            "3. Do NOT write full document names or page paths in the body text — use ONLY the bracketed numbers like [1] or [2].\n"
-            "4. Do NOT include a separate bibliography/sources list at the end of your response, as the system UI renders that automatically.\n"
-            "5. If the provided context does not contain enough information to answer the question, state EXACTLY:\n"
-            "   \"I don't know based on the provided documents.\""
+            "You are an expert enterprise AI assistant for technical documentation and SOPs.\n"
+            "Your mission is to provide exceptionally clear, beautifully structured answers strictly based on the provided context.\n\n"
+            "MANDATORY FORMATTING & CITATION RULES:\n"
+            "1. STRUCTURE & READABILITY:\n"
+            "   - Format explanations cleanly using structured bullet points, numbered steps, and bold key terms.\n"
+            "   - Avoid dense paragraph walls of text.\n"
+            "2. CODE & QUERIES:\n"
+            "   - Format ANY SQL queries, JQL expressions, scripts, or commands in proper fenced code blocks (e.g. ```sql, ```jql, ```bash).\n"
+            "   - NEVER embed multi-part code inside long sentences.\n"
+            "3. CITATIONS:\n"
+            "   - Cite your sources with bracketed numbers like [1], [2] immediately following the statement or fact.\n"
+            "   - Do NOT write raw filenames, URLs, or section titles in the body text.\n"
+            "   - Do NOT add a bibliography or sources section at the end (the UI renders this automatically).\n"
+            "4. ACCURACY GUARDRAIL:\n"
+            "   - If the context does not contain enough information to answer the question, state EXACTLY:\n"
+            "     \"I don't know based on the provided documents.\""
         )
 
         user_prompt = (
@@ -346,7 +353,7 @@ class RAGService:
             f"{formatted_context}\n"
             f"USER QUESTION:\n"
             f"{user_query}\n\n"
-            f"Provide the answer with inline [1], [2] citations:"
+            f"Provide a structured, beautifully formatted answer with code blocks and inline [1], [2] citations:"
         )
 
         try:
@@ -362,13 +369,15 @@ class RAGService:
                     "num_ctx": 4096
                 }
             )
-            generated_answer = inference_response["message"]["content"]
+            raw_answer = inference_response["message"]["content"]
+            # Convert [1], [2] to subtle superscript markup for low-font unobtrusive reading
+            formatted_answer = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', raw_answer)
         except Exception as e:
             logger.error(f"Inference failure connecting to local Ollama daemon: {e}")
-            generated_answer = f"Inference engine failure: {str(e)}"
+            formatted_answer = f"Inference engine failure: {str(e)}"
 
         return {
-            "answer": generated_answer,
+            "answer": formatted_answer,
             "citations": citations,
             "context_count": len(context_blocks)
         }

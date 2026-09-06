@@ -58,7 +58,7 @@ if "messages" not in st.session_state:
     ]
 
 # -----------------------------------------------------------------------------
-# Global Styling - Unified Clean White & ChatGPT-like Interface
+# Global Styling - Unified Clean Minimalist & Code Aesthetics
 # -----------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -74,7 +74,7 @@ st.markdown("""
         color: #18181b !important;
     }
 
-    /* Completely hide deploy button, 3-dots settings menu (#MainMenu), toolbar, sidebar, and header chrome */
+    /* Completely hide deploy button, 3-dots settings menu, toolbar, sidebar, and headers */
     #MainMenu, 
     .stDeployButton, 
     [data-testid="stDeployButton"],
@@ -95,8 +95,8 @@ st.markdown("""
 
     /* Constrain main conversation container to ChatGPT ergonomic width */
     .main .block-container {
-        max-width: 820px !important;
-        padding-top: 1.5rem !important;
+        max-width: 800px !important;
+        padding-top: 1.2rem !important;
         padding-bottom: 7rem !important;
         margin: 0 auto !important;
     }
@@ -106,17 +106,17 @@ st.markdown("""
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: 0.88rem;
+        font-size: 0.86rem;
         font-weight: 600;
         color: #18181b;
         background: #f4f4f5;
-        padding: 5px 12px;
+        padding: 4px 12px;
         border-radius: 20px;
         border: 1px solid #e4e4e7;
     }
     .top-bar-dot {
-        width: 8px;
-        height: 8px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
         background-color: #10b981;
     }
@@ -128,8 +128,8 @@ st.markdown("""
         color: #e11d48 !important;
         border: 1px solid #fecdd3 !important;
         border-radius: 20px !important;
-        padding: 4px 14px !important;
-        font-size: 0.8rem !important;
+        padding: 3px 12px !important;
+        font-size: 0.78rem !important;
         font-weight: 600 !important;
         transition: all 0.15s ease !important;
         box-shadow: none !important;
@@ -141,45 +141,63 @@ st.markdown("""
         background-color: #ffe4e6 !important;
         border-color: #fda4af !important;
         color: #be123c !important;
-        transform: translateY(-1px);
     }
 
-    /* Suggestion Grid Cards */
-    .suggestion-card-btn button {
-        background: #ffffff !important;
-        border: 1px solid #e4e4e7 !important;
-        border-radius: 12px !important;
-        color: #18181b !important;
-        text-align: left !important;
-        padding: 14px !important;
-        min-height: 88px !important;
-        height: 100% !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-        transition: all 0.18s ease !important;
+    /* Subtle Superscript Citations */
+    sup {
+        font-size: 0.70em !important;
+        color: #64748b !important;
+        font-weight: 600 !important;
+        vertical-align: baseline !important;
+        position: relative !important;
+        top: -0.45em !important;
+        margin-left: 2px !important;
+        margin-right: 1px !important;
+        letter-spacing: -0.02em !important;
     }
-    .suggestion-card-btn button:hover {
-        background: #fafafa !important;
-        border-color: #d4d4d8 !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
-        transform: translateY(-2px);
+
+    /* Code Blocks & In-line Code Snippets */
+    code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        padding: 2px 6px !important;
+        border-radius: 5px !important;
+        font-size: 0.86em !important;
+    }
+    pre {
+        background-color: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 10px !important;
+        padding: 14px 18px !important;
+        margin: 10px 0 !important;
+        overflow-x: auto !important;
+    }
+    pre code {
+        background: transparent !important;
+        padding: 0 !important;
+        font-size: 0.88em !important;
+        color: #0f172a !important;
     }
 
     /* Chat Messages - ChatGPT aesthetic */
     div[data-testid="stChatMessage"] {
         background-color: transparent !important;
         border: none !important;
-        padding: 16px 0 !important;
+        padding: 14px 0 !important;
+        font-size: 0.94rem !important;
+        line-height: 1.65 !important;
     }
     div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatarIcon-user"]) {
         background-color: #f4f4f5 !important;
         border-radius: 16px !important;
-        padding: 14px 18px !important;
+        padding: 12px 18px !important;
         margin-bottom: 12px !important;
     }
 
     /* ChatGPT Bottom Fixed Input Bar */
     div[data-testid="stChatInput"] {
-        max-width: 820px !important;
+        max-width: 800px !important;
         margin: 0 auto !important;
         padding: 0 !important;
     }
@@ -211,17 +229,17 @@ st.markdown("""
 
 
 # -----------------------------------------------------------------------------
-# Login Screen Component
+# Login Screen Component - Compact ChatGPT Format
 # -----------------------------------------------------------------------------
 def render_login_portal() -> None:
     """
-    Renders an artistic, minimalist plain white login gateway for DaSH Chatbot.
+    Renders an artistic, compact, plain white login gateway for DaSH Chatbot.
     """
     st.markdown("""
     <style>
         .main .block-container {
-            max-width: 380px !important;
-            padding-top: 12vh !important;
+            max-width: 310px !important;
+            padding-top: 14vh !important;
             padding-bottom: 6vh !important;
             margin: 0 auto !important;
         }
@@ -230,22 +248,22 @@ def render_login_portal() -> None:
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 48px;
-            height: 48px;
+            width: 40px;
+            height: 40px;
             background: #18181b;
             color: #ffffff;
-            border-radius: 14px;
-            margin-bottom: 16px;
-            font-size: 1.25rem;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
             font-weight: 700;
         }
 
         .dash-title {
-            font-size: 1.85rem;
+            font-size: 1.6rem;
             font-weight: 300;
-            letter-spacing: -0.035em;
+            letter-spacing: -0.03em;
             color: #09090b;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .dash-title span {
@@ -253,28 +271,29 @@ def render_login_portal() -> None:
         }
 
         .dash-subtitle {
-            font-size: 0.84rem;
+            font-size: 0.8rem;
             color: #71717a;
-            margin-bottom: 28px;
+            margin-bottom: 22px;
         }
 
-        /* Form Inputs */
+        /* Form Inputs - Compact Height */
         div[data-testid="stTextInput"] {
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
         div[data-testid="stTextInput"] label {
             color: #52525b !important;
-            font-size: 0.78rem !important;
+            font-size: 0.74rem !important;
             font-weight: 600 !important;
-            letter-spacing: 0.02em !important;
+            margin-bottom: 2px !important;
         }
         div[data-testid="stTextInput"] input {
             background-color: #ffffff !important;
             border: 1px solid #e4e4e7 !important;
-            border-radius: 10px !important;
+            border-radius: 8px !important;
             color: #09090b !important;
-            font-size: 0.9rem !important;
-            padding: 10px 14px !important;
+            font-size: 0.86rem !important;
+            padding: 8px 12px !important;
+            height: 38px !important;
             transition: all 0.15s ease-in-out !important;
         }
         div[data-testid="stTextInput"] input:focus {
@@ -287,39 +306,39 @@ def render_login_portal() -> None:
             background-color: #18181b !important;
             color: #ffffff !important;
             border: 1px solid #18181b !important;
-            border-radius: 10px !important;
-            padding: 10px 16px !important;
+            border-radius: 8px !important;
+            padding: 8px 14px !important;
             font-weight: 600 !important;
-            font-size: 0.9rem !important;
-            margin-top: 12px !important;
+            font-size: 0.86rem !important;
+            margin-top: 8px !important;
             width: 100% !important;
+            height: 38px !important;
             transition: all 0.2s ease !important;
         }
         div[data-testid="stFormSubmitButton"] button:hover {
             background-color: #27272a !important;
             border-color: #27272a !important;
-            transform: translateY(-1px);
         }
 
         /* Demo Credentials Box */
         .dash-demo-box {
-            margin-top: 28px;
-            padding: 14px 16px;
+            margin-top: 22px;
+            padding: 10px 14px;
             background: #fafafa;
             border: 1px solid #f4f4f5;
-            border-radius: 10px;
-            font-size: 0.76rem;
+            border-radius: 8px;
+            font-size: 0.72rem;
             color: #71717a;
-            line-height: 1.6;
+            line-height: 1.5;
             text-align: left;
         }
         .dash-demo-box code {
             background: #ffffff;
             color: #09090b;
             border: 1px solid #e4e4e7;
-            padding: 1px 5px;
+            padding: 1px 4px;
             border-radius: 4px;
-            font-size: 0.74rem;
+            font-size: 0.72rem;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -343,11 +362,11 @@ def render_login_portal() -> None:
                 st.session_state["username"] = user_input
                 st.rerun()
             else:
-                st.error("Invalid username or password.")
+                st.error("Invalid credentials.")
 
     st.markdown("""
     <div class="dash-demo-box">
-        <div style="font-weight: 600; color: #18181b; margin-bottom: 4px; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.05em;">Demo Credentials</div>
+        <div style="font-weight: 600; color: #18181b; margin-bottom: 2px; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em;">Demo Accounts</div>
         <div>Admin: <code>admin</code> / <code>sopsecure2026</code></div>
         <div>Analyst: <code>analyst</code> / <code>enterprise2026</code></div>
     </div>
@@ -390,54 +409,11 @@ st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
-# 8 Minimalist Frequent Suggestions Grid (Jira, SSMS & T-SQL)
-# -----------------------------------------------------------------------------
-SUGGESTIONS = [
-    ("🎯 Jira JQL Queries", "Overdue SLAs & search filters", "What are standard JQL query examples for finding overdue or breached SLA tickets?"),
-    ("⏱️ JSM SLA Targets", "P1, P2, P3 response & fix goals", "What are the standard SLA response and resolution times for P1, P2, and P3 tickets?"),
-    ("🔄 Jira Workflows", "States, transitions & validators", "What are the standard workflow states and transition validators in enterprise Jira?"),
-    ("📊 SSMS Execution Plans", "Estimated vs Actual plan metrics", "What is the difference between Estimated and Actual Execution Plans in SSMS?"),
-    ("💾 SSMS Backup Recovery", "Full, Diff & Log disaster recovery", "What are the differences between Full, Differential, and Transaction Log backups in SSMS?"),
-    ("🔍 SSMS Extended Events", "XEvents vs legacy Profiler", "How do Extended Events replace SQL Server Profiler for performance monitoring in SSMS?"),
-    ("⚡ T-SQL Window Functions", "ROW_NUMBER, RANK & LEAD/LAG", "How do ROW_NUMBER, RANK, DENSE_RANK, and LEAD work in T-SQL queries?"),
-    ("🛡️ T-SQL Transactions", "ACID, Isolation & TRY...CATCH", "How is structured error handling implemented with BEGIN TRY...CATCH and ROLLBACK in T-SQL?")
-]
-
-selected_prompt = None
-
-# Show suggestions grid on new / fresh conversations
-if len(st.session_state["messages"]) <= 1:
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-    
-    # Row 1 (Cards 1 to 4)
-    cols_row1 = st.columns(4)
-    for idx in range(4):
-        title, desc, query = SUGGESTIONS[idx]
-        with cols_row1[idx]:
-            st.markdown('<div class="suggestion-card-btn">', unsafe_allow_html=True)
-            if st.button(f"**{title}**\n\n{desc}", key=f"sug_{idx}", use_container_width=True):
-                selected_prompt = query
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    # Row 2 (Cards 5 to 8)
-    cols_row2 = st.columns(4)
-    for idx in range(4, 8):
-        title, desc, query = SUGGESTIONS[idx]
-        with cols_row2[idx - 4]:
-            st.markdown('<div class="suggestion-card-btn">', unsafe_allow_html=True)
-            if st.button(f"**{title}**\n\n{desc}", key=f"sug_{idx}", use_container_width=True):
-                selected_prompt = query
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-
-
-# -----------------------------------------------------------------------------
 # Chat Conversation History
 # -----------------------------------------------------------------------------
 for message in st.session_state["messages"]:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        st.markdown(message["content"], unsafe_allow_html=True)
 
         citations = message.get("citations", [])
         if citations:
@@ -453,7 +429,7 @@ for message in st.session_state["messages"]:
 # -----------------------------------------------------------------------------
 # ChatGPT-style Input Bar & Response Handler
 # -----------------------------------------------------------------------------
-user_query = st.chat_input("Message DaSH Chatbot...") or selected_prompt
+user_query = st.chat_input("Message DaSH Chatbot...")
 
 if user_query:
     st.session_state["messages"].append({"role": "user", "content": user_query})
@@ -474,7 +450,7 @@ if user_query:
                     answer = data.get("answer", "")
                     citations = data.get("citations", [])
 
-                    st.markdown(answer)
+                    st.markdown(answer, unsafe_allow_html=True)
 
                     if citations:
                         with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
