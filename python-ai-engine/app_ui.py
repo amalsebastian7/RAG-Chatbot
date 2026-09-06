@@ -133,14 +133,19 @@ st.markdown("""
         background-color: #10b981;
     }
 
-    /* Terminate Session Red Button */
-    button[data-testid="stBaseButton-secondary"]:has(div:contains("Terminate Session")),
-    div[data-testid="stButton"] button:has(p:contains("Terminate Session")) {
+    /* Align Terminate Session Button to the far right */
+    div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] {
+        display: flex !important;
+        justify-content: flex-end !important;
+        width: 100% !important;
+    }
+    div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button {
+        margin-left: auto !important;
         background-color: #fff1f2 !important;
         color: #e11d48 !important;
         border: 1px solid #fecdd3 !important;
         border-radius: 20px !important;
-        padding: 3px 12px !important;
+        padding: 3px 14px !important;
         font-size: 0.78rem !important;
         font-weight: 600 !important;
         transition: all 0.15s ease !important;
@@ -148,8 +153,7 @@ st.markdown("""
         height: auto !important;
         min-height: unset !important;
     }
-    button[data-testid="stBaseButton-secondary"]:has(div:contains("Terminate Session")):hover,
-    div[data-testid="stButton"] button:has(p:contains("Terminate Session")):hover {
+    div[data-testid="column"]:nth-child(2) div[data-testid="stButton"] button:hover {
         background-color: #ffe4e6 !important;
         border-color: #fda4af !important;
         color: #be123c !important;
@@ -222,6 +226,70 @@ st.markdown("""
         margin-left: 2px !important;
         margin-right: 1px !important;
         letter-spacing: -0.02em !important;
+    }
+
+    /* Interactive Dropdown Citations */
+    .citations-block {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+    }
+    .cite-dropdown {
+        border: 1px solid #e4e4e7;
+        border-radius: 8px;
+        background-color: #fafafa;
+        overflow: hidden;
+        font-size: 0.80rem;
+        transition: all 0.15s ease;
+    }
+    .cite-dropdown[open] {
+        background-color: #ffffff;
+        border-color: #d4d4d8;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+    .cite-summary {
+        cursor: pointer;
+        padding: 7px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        user-select: none;
+        font-weight: 500;
+        color: #334155;
+        list-style: none;
+    }
+    .cite-summary::-webkit-details-marker {
+        display: none;
+    }
+    .cite-badge {
+        font-weight: 700;
+        color: #6366f1;
+        font-size: 0.76rem;
+    }
+    .cite-title {
+        color: #0f172a;
+        font-weight: 600;
+        font-size: 0.80rem;
+    }
+    .cite-icon {
+        margin-left: auto;
+        color: #94a3b8;
+        font-size: 0.74rem;
+        transition: transform 0.2s ease;
+    }
+    .cite-dropdown[open] .cite-icon {
+        transform: rotate(180deg);
+    }
+    .cite-body {
+        padding: 8px 14px 10px 14px;
+        border-top: 1px solid #f1f5f9;
+        background-color: #f8fafc;
+        color: #475569;
+        font-size: 0.78rem;
+        line-height: 1.5;
+        font-style: italic;
     }
 
     /* Code Blocks */
@@ -358,18 +426,37 @@ st.markdown("""
             background-color: #18181b;
         }
     }
-
-    /* Expander / Citations */
-    div[data-testid="stExpander"] {
-        border: 1px solid #e4e4e7 !important;
-        border-radius: 10px !important;
-        background: #fafafa !important;
-        box-shadow: none !important;
-        margin-top: 8px !important;
-        width: 100% !important;
-    }
 </style>
 """, unsafe_allow_html=True)
+
+
+def build_citations_dropdown(citations: list) -> str:
+    """
+    Renders an interactive, clickable HTML dropdown for sources and citations.
+    """
+    if not citations:
+        return ""
+    
+    html = '<div class="citations-block">'
+    for idx, c in enumerate(citations):
+        doc = c.get('document', 'Document')
+        section = f" › {c.get('section')}" if c.get('section') else ""
+        page = f" › Page {c.get('page')}" if c.get('page') else ""
+        snippet = c.get('snippet', '')
+        html += f"""
+        <details class="cite-dropdown">
+            <summary class="cite-summary">
+                <span class="cite-badge">[{idx+1}]</span>
+                <span class="cite-title">{doc}{section}{page}</span>
+                <span class="cite-icon">▾</span>
+            </summary>
+            <div class="cite-body">
+                "{snippet}"
+            </div>
+        </details>
+        """
+    html += '</div>'
+    return html
 
 
 # -----------------------------------------------------------------------------
@@ -525,9 +612,9 @@ if not st.session_state["authenticated"]:
 
 
 # -----------------------------------------------------------------------------
-# Authenticated Screen: Top Navigation Bar
+# Authenticated Screen: Top Navigation Bar (Aligned with chat content)
 # -----------------------------------------------------------------------------
-col_left, col_right = st.columns([6, 2])
+col_left, col_right = st.columns([5, 5])
 
 with col_left:
     st.markdown(f"""
@@ -577,13 +664,7 @@ for message in st.session_state["messages"]:
 
         citations = message.get("citations", [])
         if citations:
-            with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
-                for idx, c in enumerate(citations):
-                    doc = c.get('document', 'Document')
-                    section = f" -> {c.get('section')}" if c.get('section') else ""
-                    page = f" -> Page {c.get('page')}" if c.get('page') else ""
-                    st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
-                    st.markdown(f"> *\"{c.get('snippet')}\"*")
+            st.markdown(build_citations_dropdown(citations), unsafe_allow_html=True)
 
         if message.get("response_time") is not None:
             st.markdown(f"""
@@ -643,13 +724,7 @@ if user_query:
             st.markdown(answer, unsafe_allow_html=True)
 
             if citations:
-                with st.expander(f"📚 Verified Sources & Citations ({len(citations)} references)"):
-                    for idx, c in enumerate(citations):
-                        doc = c.get('document', 'Document')
-                        section = f" -> {c.get('section')}" if c.get('section') else ""
-                        page = f" -> Page {c.get('page')}" if c.get('page') else ""
-                        st.markdown(f"**[{idx+1}]: {doc}{section}{page}**")
-                        st.markdown(f"> *\"{c.get('snippet')}\"*")
+                st.markdown(build_citations_dropdown(citations), unsafe_allow_html=True)
 
             st.markdown(f"""
             <div class="response-time-meta">⚡ Response time: {elapsed_sec:.2f}s</div>

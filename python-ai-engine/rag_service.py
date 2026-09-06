@@ -370,8 +370,10 @@ class RAGService:
                 }
             )
             raw_answer = inference_response["message"]["content"]
+            # Strip any redundant LLM-generated trailing References text
+            clean_answer = re.split(r'\n(?:\*\*|##|\b)?References(?:\:|\*\*|\b)?', raw_answer, flags=re.IGNORECASE)[0].strip()
             # Convert [1], [2] to subtle superscript markup for low-font unobtrusive reading
-            formatted_answer = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', raw_answer)
+            formatted_answer = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', clean_answer)
         except Exception as e:
             logger.error(f"Inference failure connecting to local Ollama daemon: {e}")
             formatted_answer = f"Inference engine failure: {str(e)}"
